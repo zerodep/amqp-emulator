@@ -1,0 +1,7 @@
+coverage
+node_modules
+package-lock.json
+src/defs.js
+spec
+types/index.d.ts
+*.d.ts.map

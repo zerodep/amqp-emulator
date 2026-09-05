@@ -1,0 +1,41 @@
+# Dependency directory and npm log
+node_modules
+npm-debug.log
+tmp
+
+# Code coverage results
+/coverage
+coverage*
+
+# Built package
+/*.tgz
+/dist
+
+# Project files
+.idea
+*.iml
+.vscode
+
+# Agent files (AGENTS.md is the canonical, agent-agnostic doc)
+.claude
+CLAUDE.md
+
+# OS X
+.DS_Store
+
+# vim
+*.swp
+*.swo
+
+# TS
+*.d.ts.map
+
+# eslint
+.eslintcache
+
+package-lock.json
+
+*.log
+
+# builds
+*.d.ts.map

@@ -1,0 +1,28 @@
+{
+  "include": ["src/**/*", "types"],
+  "compilerOptions": {
+    "emitDeclarationOnly": true,
+    "rootDir": "src",
+    "lib": ["es2022"],
+    "target": "es2022",
+    "outDir": "./tmp/ignore",
+    "declaration": true,
+    "noEmitOnError": true,
+    "noErrorTruncation": true,
+    "checkJs": true,
+    "allowJs": true,
+    "module": "nodenext",
+    "moduleResolution": "nodenext",
+    "resolveJsonModule": true,
+    "strict": true,
+    "strictNullChecks": false,
+    "stripInternal": true,
+    "noUnusedLocals": true,
+    "noUnusedParameters": false,
+    "skipLibCheck": true,
+    "types": ["node"],
+    "paths": {
+      "types": ["./types/interfaces.js"]
+    }
+  }
+}
