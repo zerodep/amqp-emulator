@@ -1,5 +1,5 @@
-// Generates src/defs.js from the RabbitMQ AMQP 0-9-1 spec JSON.
-// Usage: node scripts/generate-defs.js > src/defs.js
+// Generates src/amqp09/defs.js from the RabbitMQ AMQP 0-9-1 spec JSON.
+// Usage: node scripts/generate-amqp09-defs.js > src/amqp09/defs.js
 import { readFileSync } from 'node:fs';
 import { fileURLToPath } from 'node:url';
 import { dirname, join } from 'node:path';
@@ -17,7 +17,7 @@ function camel(dashed) {
 const out = [];
 const w = (s = '') => out.push(s);
 
-w('// Generated from spec/amqp-rabbitmq-0.9.1.json by scripts/generate-defs.js. Do not edit.');
+w('// Generated from spec/amqp-rabbitmq-0.9.1.json by scripts/generate-amqp09-defs.js. Do not edit.');
 w();
 w('export const constants = {');
 for (const c of spec.constants) {

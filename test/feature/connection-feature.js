@@ -1,7 +1,7 @@
 import callbackApi from 'amqplib/callback_api';
 import { credentials } from 'amqplib';
 
-import { RawClient } from '../helpers/raw-client.js';
+import { Raw091Client } from '../helpers/raw091-client.js';
 
 import { startServer, once, tick } from '../helpers/index.js';
 
@@ -139,7 +139,7 @@ Feature('Connection', () => {
     });
 
     And('an unsupported mechanism is refused with 530 NOT_ALLOWED', async () => {
-      const raw = new RawClient(ctx.server.port);
+      const raw = new Raw091Client(ctx.server.port);
       await raw.connect();
       raw.write(Buffer.from(`AMQP${String.fromCharCode(0, 0, 9, 1)}`, 'binary'));
       await raw.waitFor('connection.start');
@@ -178,7 +178,7 @@ Feature('Connection', () => {
     });
 
     When('a client announcing the connection.blocked capability connects', async () => {
-      raw = new RawClient(ctx.server.port);
+      raw = new Raw091Client(ctx.server.port);
       await raw.connect();
       await raw.handshake({ clientProperties: { capabilities: { 'connection.blocked': true } } });
     });
@@ -293,7 +293,7 @@ Feature('Connection', () => {
     });
 
     Then('the client channel max is taken as is', async () => {
-      const raw = new RawClient(ctx.server.port);
+      const raw = new Raw091Client(ctx.server.port);
       await raw.connect();
       raw.write(Buffer.from(`AMQP${String.fromCharCode(0, 0, 9, 1)}`, 'binary'));
       await raw.waitFor('connection.start');

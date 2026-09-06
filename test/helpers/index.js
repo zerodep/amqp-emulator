@@ -94,3 +94,41 @@ export function consumeMessages(channel, queue, count = 1, options) {
 export function tick(ms = 10) {
   return new Promise((resolve) => setTimeout(resolve, ms));
 }
+
+/**
+ * Resolve once `emitter` has emitted `eventName` `count` times, with the collected first args.
+ * Deterministic replacement for polling a client event with `while (…) await tick()`.
+ * @param {import('node:events').EventEmitter} emitter
+ * @param {string} eventName
+ * @param {number} [count]
+ */
+export function waitForEvents(emitter, eventName, count = 1) {
+  return new Promise((resolve) => {
+    const events = [];
+    emitter.on(eventName, function handler(arg) {
+      events.push(arg);
+      if (events.length >= count) {
+        emitter.removeListener(eventName, handler);
+        resolve(events);
+      }
+    });
+  });
+}
+
+/**
+ * Resolve as soon as `predicate()` is truthy, re-checking each I/O turn so socket data is
+ * processed between checks. Rejects after `timeout` ms so a wrong assumption fails fast
+ * instead of hanging. Waits for the asserted condition itself rather than a blind `tick()`.
+ * @param {() => unknown} predicate
+ * @param {{ timeout?: number }} [options]
+ */
+export function until(predicate, { timeout = 2000 } = {}) {
+  return new Promise((resolve, reject) => {
+    const deadline = Date.now() + timeout;
+    (function check() {
+      if (predicate()) return resolve(undefined);
+      if (Date.now() > deadline) return reject(new Error(`until: condition not met within ${timeout}ms`));
+      setImmediate(check);
+    })();
+  });
+}

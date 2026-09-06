@@ -3,12 +3,12 @@ import { mock } from 'node:test';
 import { constants } from '@0dep/amqp-emulator';
 
 import { startServer, tick } from '../helpers/index.js';
-import { RawClient } from '../helpers/raw-client.js';
+import { Raw091Client } from '../helpers/raw091-client.js';
 
 Feature('Protocol edge cases', () => {
   /** @type {Awaited<ReturnType<typeof startServer>>} */
   let ctx;
-  /** @type {RawClient} */
+  /** @type {Raw091Client} */
   let client;
 
   before(async () => {
@@ -17,9 +17,14 @@ Feature('Protocol edge cases', () => {
   after(() => ctx.stop());
   afterEachScenario(() => client?.destroy());
 
+  /** the most recently accepted 0-9-1 connection */
+  function lastConnection() {
+    return /** @type {import('@0dep/amqp-emulator').AmqpConnection} */ ([...ctx.server.connections].at(-1));
+  }
+
   /** @param {number} port */
   function rawClient(port = ctx.server.port) {
-    client = new RawClient(port);
+    client = new Raw091Client(port);
     return client;
   }
 
@@ -148,7 +153,7 @@ Feature('Protocol edge cases', () => {
     let connection;
     Given('a connected raw client', async () => {
       await connectRaw();
-      connection = [...ctx.server.connections].at(-1);
+      connection = lastConnection();
     });
 
     Then('connection.tune-ok after the handshake closes with 503', async () => {
@@ -333,8 +338,7 @@ Feature('Protocol edge cases', () => {
       client.send('channel.close', 1, { replyCode: 200, replyText: '', classId: 0, methodId: 0 });
       await client.waitFor('channel.close-ok');
       await tick();
-      const [connection] = ctx.server.connections;
-      expect(connection.channels.has(1)).to.be.false;
+      expect(lastConnection().channels.has(1)).to.be.false;
     });
 
     And('the channel can be opened again', async () => {
@@ -458,23 +462,23 @@ Feature('Protocol edge cases', () => {
   });
 
   Scenario('a client that only opened a socket', () => {
-    let connection;
+    let before;
     Given('a raw tcp connection without a protocol header', async () => {
       rawClient();
       await client.connect();
       await tick();
-      connection = [...ctx.server.connections].at(-1);
-      expect(connection.state).to.equal('protocol-header');
+      before = ctx.server.connections.size;
     });
 
-    Then('blocking the broker sends it nothing', async () => {
+    Then('it is not a connection yet and blocking the broker sends it nothing', async () => {
       ctx.server.block('quiet');
       await tick();
+      expect(ctx.server.connections.size).to.equal(before);
       expect(client.raw).to.have.length(0);
       ctx.server.unblock();
     });
 
-    And('disconnecting drops the socket without a close handshake', async () => {
+    And('disconnecting drops the socket without a handshake', async () => {
       ctx.server.disconnect();
       expect(await client.closed).to.be.true;
       expect(client.raw).to.have.length(0);
@@ -531,7 +535,7 @@ Feature('Protocol edge cases', () => {
 
     Then('channel.close carries the code and zero class and method ids', async () => {
       const { AmqpError } = await import('@0dep/amqp-emulator');
-      const connection = [...ctx.server.connections].at(-1);
+      const connection = lastConnection();
       const channel = connection.channels.get(1);
       channel.close(new AmqpError(320, 'CONNECTION_FORCED - go away'));
       channel.close(new AmqpError(320, 'closing twice is a no-op'));
@@ -583,7 +587,7 @@ Feature('Protocol edge cases', () => {
       client.send('connection.tune-ok', 0, { channelMax: 5, frameMax: 4096, heartbeat: 0 });
       client.send('connection.open', 0, { virtualHost: '' });
       await client.waitFor('connection.open-ok');
-      const connection = [...ctx.server.connections].at(-1);
+      const connection = lastConnection();
       expect(connection.vhost.name).to.equal('/');
       expect(connection.channelMax).to.equal(5);
       expect(connection.frameMax).to.equal(4096);
@@ -617,7 +621,7 @@ Feature('Protocol edge cases', () => {
       rawClient(slow.server.port);
       await client.connect();
       await client.handshake({ heartbeat: 1 });
-      connection = [...slow.server.connections].at(-1);
+      connection = /** @type {import('@0dep/amqp-emulator').AmqpConnection} */ ([...slow.server.connections].at(-1));
     });
 
     When('a heartbeat interval passes without traffic', () => {
@@ -656,7 +660,7 @@ Feature('Protocol edge cases', () => {
     Given('a connected raw client', () => connectRaw());
 
     Then('the server connection emits socket.error and is removed', async () => {
-      const connection = [...ctx.server.connections].at(-1);
+      const connection = lastConnection();
       const errored = new Promise((resolve) => connection.on('socket.error', resolve));
       connection.socket.destroy(Object.assign(new Error('boom'), { code: 'EBOOM' }));
       expect(await errored).to.have.property('code', 'EBOOM');

@@ -1,7 +1,7 @@
 {
   "name": "@0dep/amqp-emulator",
   "version": "0.1.0",
-  "description": "AMQP 0-9-1 broker emulator for tests, listens on a real TCP port and speaks the wire protocol",
+  "description": "AMQP 0-9-1 and 1.0 broker emulator for tests, listens on a real TCP port and speaks both wire protocols",
   "type": "module",
   "main": "./src/index.js",
   "exports": {
@@ -14,20 +14,24 @@
     "test": "mocha",
     "posttest": "npm run lint && npm run dist && npm run tsc && npm run test:md",
     "lint": "eslint . --cache && prettier . --check --cache",
-    "generate": "node scripts/generate-defs.js > src/defs.js && prettier --write src/defs.js",
+    "generate:amqp09": "node scripts/generate-amqp09-defs.js > src/amqp09/defs.js && prettier --write src/amqp09/defs.js",
     "dist": "dts-buddy",
     "tsc": "tsc -p test",
     "prepack": "npm run dist",
     "cov:html": "c8 -n src -r html -r text mocha",
     "test:lcov": "c8 -n src -r lcov -r text mocha",
-    "test:md": "texample ./README.md"
+    "test:md": "texample ./README.md",
+    "generate:amqp10": "node scripts/generate-amqp10-defs.js > src/amqp10/defs.js && prettier --write src/amqp10/defs.js"
   },
   "engines": {
     "node": ">=24"
   },
   "keywords": [
     "amqp",
+    "amqp 1.0",
     "rabbitmq",
+    "rhea",
+    "amqplib",
     "emulator",
     "mock",
     "fake",
@@ -40,10 +44,10 @@
   },
   "license": "MIT",
   "dependencies": {
-    "smap": "^0.2.0",
     "smqp": "^13.2.0"
   },
   "devDependencies": {
+    "@azure/service-bus": "^7.9.5",
     "@eslint/js": "^10.0.1",
     "@types/chai": "^5.0.0",
     "@types/mocha": "^10.0.10",
@@ -56,13 +60,16 @@
     "globals": "^17.0.0",
     "mocha": "^11.8.0",
     "mocha-cakes-2": "^3.3.0",
+    "nock": "^14.0.17",
     "prettier": "^3.5.0",
+    "rhea": "^3.0.5",
     "texample": "^1.0.2",
     "typescript": "^6.0.3"
   },
   "files": [
     "src/",
-    "types/"
+    "types/index.d.ts*",
+    "NOTICE"
   ],
   "types": "./types/index.d.ts"
 }

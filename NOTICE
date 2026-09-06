@@ -1,0 +1,35 @@
+@0dep/amqp-emulator
+Copyright (c) 2026 Zerodep
+
+This product is licensed under the MIT License (see LICENSE).
+
+It is not affiliated with or endorsed by Microsoft, Broadcom/VMware, or OASIS.
+Azure, Azure Service Bus, RabbitMQ, and AMQP are trademarks of their respective
+owners and are used here only to describe interoperability.
+
+This product includes and derives from third-party material:
+
+1. AMQP 0-9-1 protocol definition
+   File: spec/amqp-rabbitmq-0.9.1.json
+   Copyright (C) 2008-2020 VMware, Inc. or its affiliates.
+   Licensed under the MIT License; the full notice is retained inside the file.
+   src/defs.js is generated from this file.
+
+2. AMQP 1.0 core specification
+   Files: spec/amqp-core-types-v1.0.xml, spec/amqp-core-transport-v1.0.xml,
+          spec/amqp-core-messaging-v1.0.xml, spec/amqp-core-security-v1.0.xml,
+          spec/amqp-core-transactions-v1.0.xml
+   Copyright (c) OASIS Open 2012. All Rights Reserved.
+   Redistributed under the OASIS IPR Policy with the OASIS copyright notice
+   retained in each file. "OASIS" is a trademark of OASIS.
+   src/amqp10/defs.js is generated from these files.
+
+3. Azure Service Bus wire protocol
+   The com.microsoft:* management operations and the $cbs and $management link
+   behaviour in src/servicebus/ and src/amqp10/ reproduce the Azure Service Bus
+   protocol so the @azure/service-bus SDK (MIT licensed, Copyright (c) Microsoft
+   Corporation) can be tested against this emulator. No Microsoft source code is
+   included.
+
+The bundled specification files under spec/ are used to generate code and are
+not part of the published npm package.

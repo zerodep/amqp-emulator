@@ -12,11 +12,20 @@ export interface ServerOptions {
   /** allowed vhosts, defaults to any (created on demand) */
   vhosts?: string[] | null;
   /** credential check, defaults to accept everyone */
-  authenticate?: ((user: string, password: string, connection: import('@0dep/amqp-emulator').AmqpConnection) => boolean) | null;
+  authenticate?: ((user: string, password: string, connection: AuthenticatingConnection) => boolean) | null;
   /** version string reported in server properties */
   version?: string;
   /** how often expired messages are swept from queues in ms, dead lettering them when configured, defaults to 100, 0 disables */
   evictInterval?: number;
+  /** Service Bus peek lock duration in ms, defaults to 60000 */
+  lockDuration?: number;
+}
+
+/** the connection being authenticated, either protocol */
+export interface AuthenticatingConnection {
+  id: number;
+  clientProperties: Record<string, any>;
+  socket: import('node:net').Socket;
 }
 
 export interface ListenResult {
@@ -154,11 +163,16 @@ export interface DecodedProperties {
   properties: MessageProperties;
 }
 
+/** whoever owns a consumer and wants to know when its queue disappears */
+export interface ConsumerOwner {
+  onConsumerCancelled(entry: ConsumerEntry): void;
+}
+
 export interface ConsumerEntry {
   /** client facing consumer tag */
   tag: string;
   noAck: boolean;
-  channel: import('@0dep/amqp-emulator').AmqpChannel;
+  channel: ConsumerOwner;
   consumer: Consumer;
 }
 
@@ -181,7 +195,7 @@ export interface PendingContent {
 
 /** channel currently publishing, used to correlate basic.return */
 export interface Publishing {
-  channel: import('@0dep/amqp-emulator').AmqpChannel;
+  channel: { onReturn(event: any, publishing: Publishing): void };
   properties: MessageProperties;
 }
 
@@ -189,16 +203,71 @@ export type ChannelState = 'open' | 'closing' | 'closed';
 
 export type ConnectionState = 'protocol-header' | 'start' | 'tune' | 'open' | 'running' | 'closing' | 'closed';
 
-export interface AmqpConnectionEvents {
-  channel: [channel: import('@0dep/amqp-emulator').AmqpChannel];
-  'channel.error': [err: import('@0dep/amqp-emulator').AmqpError, channel: import('@0dep/amqp-emulator').AmqpChannel];
-  'error.amqp': [err: import('@0dep/amqp-emulator').AmqpError];
-  'socket.error': [err: Error];
-  'heartbeat.timeout': [];
-  close: [];
+export interface Amqp10Field {
+  /** camel cased field name */
+  name: string;
+  /** spec type name: a primitive, a restricted type, a composite or `*` */
+  type: string;
+  mandatory: boolean;
+  /** may be encoded as an array of the type */
+  multiple: boolean;
+  /** archetype the value must provide when type is `*` */
+  requires?: string;
 }
 
-export interface AmqpServerEvents {
-  connection: [connection: import('@0dep/amqp-emulator').AmqpConnection];
-  error: [err: Error, connection?: import('@0dep/amqp-emulator').AmqpConnection];
+/** AMQP 1.0 described list type, e.g. a performative, a terminus or a message header */
+export interface Amqp10Composite {
+  name: string;
+  /** numeric descriptor, domain shifted 32 bits plus id */
+  descriptor: number;
+  symbol: string;
+  source: string;
+  provides: string[];
+  fields: Amqp10Field[];
+}
+
+/** AMQP 1.0 restricted type, a primitive with a name, choices and sometimes a descriptor (message sections) */
+export interface Amqp10Restricted {
+  name: string;
+  source: string;
+  choices: Array<[string, string]>;
+  descriptor?: number;
+  symbol?: string;
+}
+
+export interface Amqp10Encoding {
+  name: string;
+  code: number;
+  category: string;
+  width: number;
+}
+
+export interface Amqp10Primitive {
+  name: string;
+  encodings: Amqp10Encoding[];
+}
+
+/** decoded described value: known composites and sections come back with `$type`, unknown descriptors with `$descriptor` */
+export type Amqp10Described = { $type: string; [field: string]: any } | { $descriptor: number | string; value: any };
+
+export interface Amqp10Frame {
+  /** 0 amqp, 1 sasl */
+  type: number;
+  channel: number;
+  /** null for empty (heartbeat) frames */
+  performative: Amqp10Described | null;
+  payload: Buffer;
+}
+
+export type Amqp10ConnectionState = 'header' | 'sasl' | 'sasl-done' | 'open' | 'running' | 'closing' | 'closed';
+
+/** decoded AMQP 1.0 message, sections by name plus the body sections in order */
+export interface Amqp10Message {
+  header?: Record<string, any>;
+  deliveryAnnotations?: Record<string, any>;
+  messageAnnotations?: Record<string, any>;
+  properties?: Record<string, any>;
+  applicationProperties?: Record<string, any>;
+  body: Array<{ $type: 'data' | 'amqp-sequence' | 'amqp-value'; value: any }>;
+  footer?: Record<string, any>;
 }

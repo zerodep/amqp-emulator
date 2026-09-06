@@ -3,6 +3,8 @@ import { EventEmitter } from 'node:events';
 import { constants } from './defs.js';
 import { FrameParser, FrameError } from './frame.js';
 import { encodeMethod, encodeProperties, encodeBody, decodeMethod, BufferReader, HEARTBEAT_FRAME, PROTOCOL_HEADER } from './codec.js';
+
+export { PROTOCOL_HEADER };
 import { AmqpError, channelError, commandInvalid, unexpectedFrame } from './errors.js';
 import { AmqpChannel } from './channel.js';
 
@@ -24,13 +26,17 @@ const SERVER_CAPABILITIES = {
 const HANDSHAKE_EXPECTS = { start: 'connection.start-ok', tune: 'connection.tune-ok', open: 'connection.open' };
 
 /**
+ * Events emitted by a 0-9-1 connection: `channel` when a channel opens, `channel.error` when the server closes a channel,
+ * `error.amqp` when the server closes the connection, `socket.error`, `heartbeat.timeout` and `close`.
+ * @typedef {{ channel: [channel: AmqpChannel], 'channel.error': [err: AmqpError, channel: AmqpChannel], 'error.amqp': [err: AmqpError], 'socket.error': [err: Error], 'heartbeat.timeout': [], close: [] }} AmqpConnectionEvents
+ */
+
+/**
  * One client connection: handshake, framing, heartbeats and channel multiplexing
- * @extends {EventEmitter<import('types').AmqpConnectionEvents>}
+ * @extends {EventEmitter<AmqpConnectionEvents>}
  */
 export class AmqpConnection extends EventEmitter {
   #parser = new FrameParser();
-  /** @type {Buffer | null} bytes received before the protocol header was complete */
-  #headerBuffer = Buffer.alloc(0);
   #sentSinceLastCheck = false;
   #recvSinceLastCheck = false;
   #missedHeartbeats = 0;
@@ -42,7 +48,7 @@ export class AmqpConnection extends EventEmitter {
   #destroyed = false;
 
   /**
-   * @param {import('./server.js').AmqpServer} server
+   * @param {import('../server.js').AmqpServer} server
    * @param {import('node:net').Socket} socket
    */
   constructor(server, socket) {
@@ -60,7 +66,7 @@ export class AmqpConnection extends EventEmitter {
     this.channelMax = server.options.channelMax;
     /** negotiated heartbeat interval in seconds */
     this.heartbeat = server.options.heartbeat;
-    /** @type {import('./vhost.js').VHost | null} */
+    /** @type {import('../vhost.js').VHost | null} */
     this.vhost = null;
     /** @type {string | null} authenticated user */
     this.user = null;
@@ -70,7 +76,7 @@ export class AmqpConnection extends EventEmitter {
     this.closeReason = null;
 
     socket.setNoDelay(true);
-    socket.on('data', (chunk) => this.#onData(chunk));
+    socket.on('data', (chunk) => this.feed(chunk));
     socket.on('error', (err) => this.#onSocketError(err));
     socket.on('close', () => this.destroy());
   }
@@ -135,7 +141,6 @@ export class AmqpConnection extends EventEmitter {
     if (this.state === 'closed' || this.state === 'closing') return;
     this.closeReason = { replyCode: err.code, replyText: err.replyText };
     this.emit('error.amqp', err);
-    if (this.state === 'protocol-header') return this.destroy();
     this.#release();
     this.state = 'closing';
     this.write(
@@ -164,22 +169,16 @@ export class AmqpConnection extends EventEmitter {
     this.emit('close');
   }
 
-  /** @param {Buffer} chunk */
-  #onData(chunk) {
+  /**
+   * Feed bytes from the socket. The first call carries the protocol header, already verified by the server.
+   * @param {Buffer} chunk
+   */
+  feed(chunk) {
     this.#recvSinceLastCheck = true;
     this.#missedHeartbeats = 0;
     try {
       if (this.state === 'protocol-header') {
-        this.#headerBuffer = Buffer.concat([this.#headerBuffer, chunk]);
-        if (this.#headerBuffer.length < 8) return;
-        const header = this.#headerBuffer.subarray(0, 8);
-        chunk = this.#headerBuffer.subarray(8);
-        this.#headerBuffer = null;
-        if (!header.equals(PROTOCOL_HEADER)) {
-          this.socket.end(PROTOCOL_HEADER);
-          this.state = 'closed';
-          return;
-        }
+        chunk = chunk.subarray(8);
         this.state = 'start';
         this.#sendStart();
         if (!chunk.length) return;

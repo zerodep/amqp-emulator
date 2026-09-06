@@ -1,7 +1,7 @@
 import { constants } from './defs.js';
 import { AmqpError, notFound, preconditionFailed, accessRefused, notImplemented, commandInvalid, unexpectedFrame } from './errors.js';
 import { decodeProperties } from './codec.js';
-import { generateId, kWireProperties, kConsumerEntry, detachConsumerMessages, wireProperties } from './shared.js';
+import { generateId, kWireProperties, kConsumerEntry, detachConsumerMessages, wireProperties } from '../shared.js';
 
 const SUPPORTED_EXCHANGE_TYPES = new Set(['direct', 'topic', 'fanout']);
 
@@ -104,7 +104,7 @@ export class AmqpChannel {
       if (bodySize === 0) this.#completeContent();
     } catch (err) {
       // a header that does not decode is a protocol violation, not a broker error
-      this.#onError(err instanceof AmqpError ? err : unexpectedFrame(err.message), this.#pending?.method);
+      this.#onError(err instanceof AmqpError ? err : unexpectedFrame(/** @type {Error} */ (err).message), this.#pending?.method);
     }
   }
 

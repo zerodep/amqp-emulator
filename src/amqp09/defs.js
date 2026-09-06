@@ -1,4 +1,4 @@
-// Generated from spec/amqp-rabbitmq-0.9.1.json by scripts/generate-defs.js. Do not edit.
+// Generated from spec/amqp-rabbitmq-0.9.1.json by scripts/generate-amqp09-defs.js. Do not edit.
 
 export const constants = {
   FRAME_METHOD: 1,
@@ -62,7 +62,11 @@ export const methods = {
     methodId: 10,
     synchronous: true,
     content: false,
-    args: [['prefetchSize', 'long', 0], ['prefetchCount', 'short', 0], ['global', 'bit', false]],
+    args: [
+      ['prefetchSize', 'long', 0],
+      ['prefetchCount', 'short', 0],
+      ['global', 'bit', false],
+    ],
   },
   'basic.qos-ok': {
     name: 'basic.qos-ok',
@@ -80,7 +84,16 @@ export const methods = {
     methodId: 20,
     synchronous: true,
     content: false,
-    args: [['ticket', 'short', 0], ['queue', 'shortstr', ""], ['consumerTag', 'shortstr', ""], ['noLocal', 'bit', false], ['noAck', 'bit', false], ['exclusive', 'bit', false], ['nowait', 'bit', false], ['arguments', 'table', {}]],
+    args: [
+      ['ticket', 'short', 0],
+      ['queue', 'shortstr', ''],
+      ['consumerTag', 'shortstr', ''],
+      ['noLocal', 'bit', false],
+      ['noAck', 'bit', false],
+      ['exclusive', 'bit', false],
+      ['nowait', 'bit', false],
+      ['arguments', 'table', {}],
+    ],
   },
   'basic.consume-ok': {
     name: 'basic.consume-ok',
@@ -98,7 +111,10 @@ export const methods = {
     methodId: 30,
     synchronous: true,
     content: false,
-    args: [['consumerTag', 'shortstr', null], ['nowait', 'bit', false]],
+    args: [
+      ['consumerTag', 'shortstr', null],
+      ['nowait', 'bit', false],
+    ],
   },
   'basic.cancel-ok': {
     name: 'basic.cancel-ok',
@@ -116,7 +132,13 @@ export const methods = {
     methodId: 40,
     synchronous: false,
     content: true,
-    args: [['ticket', 'short', 0], ['exchange', 'shortstr', ""], ['routingKey', 'shortstr', ""], ['mandatory', 'bit', false], ['immediate', 'bit', false]],
+    args: [
+      ['ticket', 'short', 0],
+      ['exchange', 'shortstr', ''],
+      ['routingKey', 'shortstr', ''],
+      ['mandatory', 'bit', false],
+      ['immediate', 'bit', false],
+    ],
   },
   'basic.return': {
     name: 'basic.return',
@@ -125,7 +147,12 @@ export const methods = {
     methodId: 50,
     synchronous: false,
     content: true,
-    args: [['replyCode', 'short', null], ['replyText', 'shortstr', ""], ['exchange', 'shortstr', null], ['routingKey', 'shortstr', null]],
+    args: [
+      ['replyCode', 'short', null],
+      ['replyText', 'shortstr', ''],
+      ['exchange', 'shortstr', null],
+      ['routingKey', 'shortstr', null],
+    ],
   },
   'basic.deliver': {
     name: 'basic.deliver',
@@ -134,7 +161,13 @@ export const methods = {
     methodId: 60,
     synchronous: false,
     content: true,
-    args: [['consumerTag', 'shortstr', null], ['deliveryTag', 'longlong', null], ['redelivered', 'bit', false], ['exchange', 'shortstr', null], ['routingKey', 'shortstr', null]],
+    args: [
+      ['consumerTag', 'shortstr', null],
+      ['deliveryTag', 'longlong', null],
+      ['redelivered', 'bit', false],
+      ['exchange', 'shortstr', null],
+      ['routingKey', 'shortstr', null],
+    ],
   },
   'basic.get': {
     name: 'basic.get',
@@ -143,7 +176,11 @@ export const methods = {
     methodId: 70,
     synchronous: true,
     content: false,
-    args: [['ticket', 'short', 0], ['queue', 'shortstr', ""], ['noAck', 'bit', false]],
+    args: [
+      ['ticket', 'short', 0],
+      ['queue', 'shortstr', ''],
+      ['noAck', 'bit', false],
+    ],
   },
   'basic.get-ok': {
     name: 'basic.get-ok',
@@ -152,7 +189,13 @@ export const methods = {
     methodId: 71,
     synchronous: false,
     content: true,
-    args: [['deliveryTag', 'longlong', null], ['redelivered', 'bit', false], ['exchange', 'shortstr', null], ['routingKey', 'shortstr', null], ['messageCount', 'long', null]],
+    args: [
+      ['deliveryTag', 'longlong', null],
+      ['redelivered', 'bit', false],
+      ['exchange', 'shortstr', null],
+      ['routingKey', 'shortstr', null],
+      ['messageCount', 'long', null],
+    ],
   },
   'basic.get-empty': {
     name: 'basic.get-empty',
@@ -161,7 +204,7 @@ export const methods = {
     methodId: 72,
     synchronous: false,
     content: false,
-    args: [['clusterId', 'shortstr', ""]],
+    args: [['clusterId', 'shortstr', '']],
   },
   'basic.ack': {
     name: 'basic.ack',
@@ -170,7 +213,10 @@ export const methods = {
     methodId: 80,
     synchronous: false,
     content: false,
-    args: [['deliveryTag', 'longlong', 0], ['multiple', 'bit', false]],
+    args: [
+      ['deliveryTag', 'longlong', 0],
+      ['multiple', 'bit', false],
+    ],
   },
   'basic.reject': {
     name: 'basic.reject',
@@ -179,7 +225,10 @@ export const methods = {
     methodId: 90,
     synchronous: false,
     content: false,
-    args: [['deliveryTag', 'longlong', null], ['requeue', 'bit', true]],
+    args: [
+      ['deliveryTag', 'longlong', null],
+      ['requeue', 'bit', true],
+    ],
   },
   'basic.recover-async': {
     name: 'basic.recover-async',
@@ -215,7 +264,11 @@ export const methods = {
     methodId: 120,
     synchronous: false,
     content: false,
-    args: [['deliveryTag', 'longlong', 0], ['multiple', 'bit', false], ['requeue', 'bit', true]],
+    args: [
+      ['deliveryTag', 'longlong', 0],
+      ['multiple', 'bit', false],
+      ['requeue', 'bit', true],
+    ],
   },
   'connection.start': {
     name: 'connection.start',
@@ -224,7 +277,13 @@ export const methods = {
     methodId: 10,
     synchronous: true,
     content: false,
-    args: [['versionMajor', 'octet', 0], ['versionMinor', 'octet', 9], ['serverProperties', 'table', null], ['mechanisms', 'longstr', "PLAIN"], ['locales', 'longstr', "en_US"]],
+    args: [
+      ['versionMajor', 'octet', 0],
+      ['versionMinor', 'octet', 9],
+      ['serverProperties', 'table', null],
+      ['mechanisms', 'longstr', 'PLAIN'],
+      ['locales', 'longstr', 'en_US'],
+    ],
   },
   'connection.start-ok': {
     name: 'connection.start-ok',
@@ -233,7 +292,12 @@ export const methods = {
     methodId: 11,
     synchronous: false,
     content: false,
-    args: [['clientProperties', 'table', null], ['mechanism', 'shortstr', "PLAIN"], ['response', 'longstr', null], ['locale', 'shortstr', "en_US"]],
+    args: [
+      ['clientProperties', 'table', null],
+      ['mechanism', 'shortstr', 'PLAIN'],
+      ['response', 'longstr', null],
+      ['locale', 'shortstr', 'en_US'],
+    ],
   },
   'connection.secure': {
     name: 'connection.secure',
@@ -260,7 +324,11 @@ export const methods = {
     methodId: 30,
     synchronous: true,
     content: false,
-    args: [['channelMax', 'short', 0], ['frameMax', 'long', 0], ['heartbeat', 'short', 0]],
+    args: [
+      ['channelMax', 'short', 0],
+      ['frameMax', 'long', 0],
+      ['heartbeat', 'short', 0],
+    ],
   },
   'connection.tune-ok': {
     name: 'connection.tune-ok',
@@ -269,7 +337,11 @@ export const methods = {
     methodId: 31,
     synchronous: false,
     content: false,
-    args: [['channelMax', 'short', 0], ['frameMax', 'long', 0], ['heartbeat', 'short', 0]],
+    args: [
+      ['channelMax', 'short', 0],
+      ['frameMax', 'long', 0],
+      ['heartbeat', 'short', 0],
+    ],
   },
   'connection.open': {
     name: 'connection.open',
@@ -278,7 +350,11 @@ export const methods = {
     methodId: 40,
     synchronous: true,
     content: false,
-    args: [['virtualHost', 'shortstr', "/"], ['capabilities', 'shortstr', ""], ['insist', 'bit', false]],
+    args: [
+      ['virtualHost', 'shortstr', '/'],
+      ['capabilities', 'shortstr', ''],
+      ['insist', 'bit', false],
+    ],
   },
   'connection.open-ok': {
     name: 'connection.open-ok',
@@ -287,7 +363,7 @@ export const methods = {
     methodId: 41,
     synchronous: false,
     content: false,
-    args: [['knownHosts', 'shortstr', ""]],
+    args: [['knownHosts', 'shortstr', '']],
   },
   'connection.close': {
     name: 'connection.close',
@@ -296,7 +372,12 @@ export const methods = {
     methodId: 50,
     synchronous: true,
     content: false,
-    args: [['replyCode', 'short', null], ['replyText', 'shortstr', ""], ['classId', 'short', null], ['methodId', 'short', null]],
+    args: [
+      ['replyCode', 'short', null],
+      ['replyText', 'shortstr', ''],
+      ['classId', 'short', null],
+      ['methodId', 'short', null],
+    ],
   },
   'connection.close-ok': {
     name: 'connection.close-ok',
@@ -314,7 +395,7 @@ export const methods = {
     methodId: 60,
     synchronous: false,
     content: false,
-    args: [['reason', 'shortstr', ""]],
+    args: [['reason', 'shortstr', '']],
   },
   'connection.unblocked': {
     name: 'connection.unblocked',
@@ -332,7 +413,10 @@ export const methods = {
     methodId: 70,
     synchronous: true,
     content: false,
-    args: [['newSecret', 'longstr', null], ['reason', 'shortstr', null]],
+    args: [
+      ['newSecret', 'longstr', null],
+      ['reason', 'shortstr', null],
+    ],
   },
   'connection.update-secret-ok': {
     name: 'connection.update-secret-ok',
@@ -350,7 +434,7 @@ export const methods = {
     methodId: 10,
     synchronous: true,
     content: false,
-    args: [['outOfBand', 'shortstr', ""]],
+    args: [['outOfBand', 'shortstr', '']],
   },
   'channel.open-ok': {
     name: 'channel.open-ok',
@@ -359,7 +443,7 @@ export const methods = {
     methodId: 11,
     synchronous: false,
     content: false,
-    args: [['channelId', 'longstr', ""]],
+    args: [['channelId', 'longstr', '']],
   },
   'channel.flow': {
     name: 'channel.flow',
@@ -386,7 +470,12 @@ export const methods = {
     methodId: 40,
     synchronous: true,
     content: false,
-    args: [['replyCode', 'short', null], ['replyText', 'shortstr', ""], ['classId', 'short', null], ['methodId', 'short', null]],
+    args: [
+      ['replyCode', 'short', null],
+      ['replyText', 'shortstr', ''],
+      ['classId', 'short', null],
+      ['methodId', 'short', null],
+    ],
   },
   'channel.close-ok': {
     name: 'channel.close-ok',
@@ -404,7 +493,14 @@ export const methods = {
     methodId: 10,
     synchronous: true,
     content: false,
-    args: [['realm', 'shortstr', "/data"], ['exclusive', 'bit', false], ['passive', 'bit', true], ['active', 'bit', true], ['write', 'bit', true], ['read', 'bit', true]],
+    args: [
+      ['realm', 'shortstr', '/data'],
+      ['exclusive', 'bit', false],
+      ['passive', 'bit', true],
+      ['active', 'bit', true],
+      ['write', 'bit', true],
+      ['read', 'bit', true],
+    ],
   },
   'access.request-ok': {
     name: 'access.request-ok',
@@ -422,7 +518,17 @@ export const methods = {
     methodId: 10,
     synchronous: true,
     content: false,
-    args: [['ticket', 'short', 0], ['exchange', 'shortstr', null], ['type', 'shortstr', "direct"], ['passive', 'bit', false], ['durable', 'bit', false], ['autoDelete', 'bit', false], ['internal', 'bit', false], ['nowait', 'bit', false], ['arguments', 'table', {}]],
+    args: [
+      ['ticket', 'short', 0],
+      ['exchange', 'shortstr', null],
+      ['type', 'shortstr', 'direct'],
+      ['passive', 'bit', false],
+      ['durable', 'bit', false],
+      ['autoDelete', 'bit', false],
+      ['internal', 'bit', false],
+      ['nowait', 'bit', false],
+      ['arguments', 'table', {}],
+    ],
   },
   'exchange.declare-ok': {
     name: 'exchange.declare-ok',
@@ -440,7 +546,12 @@ export const methods = {
     methodId: 20,
     synchronous: true,
     content: false,
-    args: [['ticket', 'short', 0], ['exchange', 'shortstr', null], ['ifUnused', 'bit', false], ['nowait', 'bit', false]],
+    args: [
+      ['ticket', 'short', 0],
+      ['exchange', 'shortstr', null],
+      ['ifUnused', 'bit', false],
+      ['nowait', 'bit', false],
+    ],
   },
   'exchange.delete-ok': {
     name: 'exchange.delete-ok',
@@ -458,7 +569,14 @@ export const methods = {
     methodId: 30,
     synchronous: true,
     content: false,
-    args: [['ticket', 'short', 0], ['destination', 'shortstr', null], ['source', 'shortstr', null], ['routingKey', 'shortstr', ""], ['nowait', 'bit', false], ['arguments', 'table', {}]],
+    args: [
+      ['ticket', 'short', 0],
+      ['destination', 'shortstr', null],
+      ['source', 'shortstr', null],
+      ['routingKey', 'shortstr', ''],
+      ['nowait', 'bit', false],
+      ['arguments', 'table', {}],
+    ],
   },
   'exchange.bind-ok': {
     name: 'exchange.bind-ok',
@@ -476,7 +594,14 @@ export const methods = {
     methodId: 40,
     synchronous: true,
     content: false,
-    args: [['ticket', 'short', 0], ['destination', 'shortstr', null], ['source', 'shortstr', null], ['routingKey', 'shortstr', ""], ['nowait', 'bit', false], ['arguments', 'table', {}]],
+    args: [
+      ['ticket', 'short', 0],
+      ['destination', 'shortstr', null],
+      ['source', 'shortstr', null],
+      ['routingKey', 'shortstr', ''],
+      ['nowait', 'bit', false],
+      ['arguments', 'table', {}],
+    ],
   },
   'exchange.unbind-ok': {
     name: 'exchange.unbind-ok',
@@ -494,7 +619,16 @@ export const methods = {
     methodId: 10,
     synchronous: true,
     content: false,
-    args: [['ticket', 'short', 0], ['queue', 'shortstr', ""], ['passive', 'bit', false], ['durable', 'bit', false], ['exclusive', 'bit', false], ['autoDelete', 'bit', false], ['nowait', 'bit', false], ['arguments', 'table', {}]],
+    args: [
+      ['ticket', 'short', 0],
+      ['queue', 'shortstr', ''],
+      ['passive', 'bit', false],
+      ['durable', 'bit', false],
+      ['exclusive', 'bit', false],
+      ['autoDelete', 'bit', false],
+      ['nowait', 'bit', false],
+      ['arguments', 'table', {}],
+    ],
   },
   'queue.declare-ok': {
     name: 'queue.declare-ok',
@@ -503,7 +637,11 @@ export const methods = {
     methodId: 11,
     synchronous: false,
     content: false,
-    args: [['queue', 'shortstr', null], ['messageCount', 'long', null], ['consumerCount', 'long', null]],
+    args: [
+      ['queue', 'shortstr', null],
+      ['messageCount', 'long', null],
+      ['consumerCount', 'long', null],
+    ],
   },
   'queue.bind': {
     name: 'queue.bind',
@@ -512,7 +650,14 @@ export const methods = {
     methodId: 20,
     synchronous: true,
     content: false,
-    args: [['ticket', 'short', 0], ['queue', 'shortstr', ""], ['exchange', 'shortstr', null], ['routingKey', 'shortstr', ""], ['nowait', 'bit', false], ['arguments', 'table', {}]],
+    args: [
+      ['ticket', 'short', 0],
+      ['queue', 'shortstr', ''],
+      ['exchange', 'shortstr', null],
+      ['routingKey', 'shortstr', ''],
+      ['nowait', 'bit', false],
+      ['arguments', 'table', {}],
+    ],
   },
   'queue.bind-ok': {
     name: 'queue.bind-ok',
@@ -530,7 +675,11 @@ export const methods = {
     methodId: 30,
     synchronous: true,
     content: false,
-    args: [['ticket', 'short', 0], ['queue', 'shortstr', ""], ['nowait', 'bit', false]],
+    args: [
+      ['ticket', 'short', 0],
+      ['queue', 'shortstr', ''],
+      ['nowait', 'bit', false],
+    ],
   },
   'queue.purge-ok': {
     name: 'queue.purge-ok',
@@ -548,7 +697,13 @@ export const methods = {
     methodId: 40,
     synchronous: true,
     content: false,
-    args: [['ticket', 'short', 0], ['queue', 'shortstr', ""], ['ifUnused', 'bit', false], ['ifEmpty', 'bit', false], ['nowait', 'bit', false]],
+    args: [
+      ['ticket', 'short', 0],
+      ['queue', 'shortstr', ''],
+      ['ifUnused', 'bit', false],
+      ['ifEmpty', 'bit', false],
+      ['nowait', 'bit', false],
+    ],
   },
   'queue.delete-ok': {
     name: 'queue.delete-ok',
@@ -566,7 +721,13 @@ export const methods = {
     methodId: 50,
     synchronous: true,
     content: false,
-    args: [['ticket', 'short', 0], ['queue', 'shortstr', ""], ['exchange', 'shortstr', null], ['routingKey', 'shortstr', ""], ['arguments', 'table', {}]],
+    args: [
+      ['ticket', 'short', 0],
+      ['queue', 'shortstr', ''],
+      ['exchange', 'shortstr', null],
+      ['routingKey', 'shortstr', ''],
+      ['arguments', 'table', {}],
+    ],
   },
   'queue.unbind-ok': {
     name: 'queue.unbind-ok',
@@ -653,7 +814,26 @@ export const methods = {
 
 /** @type {Record<number, import('types').PropertiesDef>} */
 export const properties = {
-  60: { name: 'basic', classId: 60, fields: [['contentType', 'shortstr'], ['contentEncoding', 'shortstr'], ['headers', 'table'], ['deliveryMode', 'octet'], ['priority', 'octet'], ['correlationId', 'shortstr'], ['replyTo', 'shortstr'], ['expiration', 'shortstr'], ['messageId', 'shortstr'], ['timestamp', 'timestamp'], ['type', 'shortstr'], ['userId', 'shortstr'], ['appId', 'shortstr'], ['clusterId', 'shortstr']] },
+  60: {
+    name: 'basic',
+    classId: 60,
+    fields: [
+      ['contentType', 'shortstr'],
+      ['contentEncoding', 'shortstr'],
+      ['headers', 'table'],
+      ['deliveryMode', 'octet'],
+      ['priority', 'octet'],
+      ['correlationId', 'shortstr'],
+      ['replyTo', 'shortstr'],
+      ['expiration', 'shortstr'],
+      ['messageId', 'shortstr'],
+      ['timestamp', 'timestamp'],
+      ['type', 'shortstr'],
+      ['userId', 'shortstr'],
+      ['appId', 'shortstr'],
+      ['clusterId', 'shortstr'],
+    ],
+  },
 };
 
 /** @type {Map<number, import('types').MethodDef>} */

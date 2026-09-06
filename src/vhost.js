@@ -1,6 +1,7 @@
 import { Broker } from 'smqp';
 
 import { kConsumerEntry } from './shared.js';
+import { ServiceBus } from './servicebus/servicebus.js';
 
 /** @type {Array<[string, string]>} */
 const DEFAULT_EXCHANGES = [
@@ -35,13 +36,26 @@ export class VHost {
     const { evictInterval } = server.options;
     if (evictInterval > 0) {
       // RabbitMQ dead letters expired messages whether or not anyone consumes, smqp only evicts lazily on consume
-      this.#sweeper = setInterval(() => this.broker.evictExpired(), evictInterval);
+      this.#sweeper = setInterval(() => this.sweep(), evictInterval);
       this.#sweeper.unref();
     }
   }
 
   /** @type {NodeJS.Timeout | null} */
   #sweeper = null;
+  /** @type {ServiceBus | null} */
+  #serviceBus = null;
+
+  /** Azure Service Bus semantics for this vhost, created on first use */
+  get serviceBus() {
+    return (this.#serviceBus ??= new ServiceBus(this, this.server));
+  }
+
+  /** Expire messages, release expired locks and enqueue due scheduled messages */
+  sweep() {
+    this.broker.evictExpired();
+    this.#serviceBus?.sweep();
+  }
 
   #declareDefaults() {
     for (const [name, type] of DEFAULT_EXCHANGES) this.declareExchange(name, type, { durable: true, autoDelete: false });
@@ -116,6 +130,7 @@ export class VHost {
   /** Clear everything and redeclare the default exchanges */
   reset() {
     this.publishing = null;
+    this.#serviceBus = null;
     this.broker.reset();
     this.exchangeTypes.clear();
     this.exclusiveQueues.clear();
