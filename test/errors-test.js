@@ -1,4 +1,4 @@
-import { AmqpError, constants } from '@0dep/amqp-emulator';
+import { AmqpError, constants } from 'amqp-emulator';
 
 describe('AmqpError', () => {
   it('formats known reply codes with their name', () => {

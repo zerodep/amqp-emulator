@@ -1,6 +1,6 @@
 import net from 'node:net';
 
-import { Amqp10FrameParser, encodeAmqp10Frame } from '@0dep/amqp-emulator';
+import { Amqp10FrameParser, encodeAmqp10Frame } from 'amqp-emulator';
 
 export const AMQP_HEADER = Buffer.from([65, 77, 81, 80, 0, 1, 0, 0]);
 export const SASL_HEADER = Buffer.from([65, 77, 81, 80, 3, 1, 0, 0]);
@@ -17,9 +17,9 @@ export class Raw10Client {
     this.port = port;
     this.host = host;
     this.parser = new Amqp10FrameParser();
-    /** @type {import('@0dep/amqp-emulator').Amqp10Frame[]} */
+    /** @type {import('amqp-emulator').Amqp10Frame[]} */
     this.frames = [];
-    /** @type {Array<(frame: import('@0dep/amqp-emulator').Amqp10Frame) => void>} */
+    /** @type {Array<(frame: import('amqp-emulator').Amqp10Frame) => void>} */
     this.waiters = [];
     /** @type {Buffer[]} protocol headers received from the server */
     this.headers = [];

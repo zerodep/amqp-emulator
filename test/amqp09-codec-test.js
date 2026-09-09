@@ -8,7 +8,7 @@ import {
   FrameParser,
   constants,
   methods,
-} from '@0dep/amqp-emulator';
+} from 'amqp-emulator';
 
 describe('codec', () => {
   describe('field tables', () => {

@@ -322,7 +322,7 @@ Feature('Connection', () => {
 
   Scenario('server lifecycle', () => {
     Then('port, host and url are unknown before listen and close is harmless', async () => {
-      const { AmqpServer } = await import('@0dep/amqp-emulator');
+      const { AmqpServer } = await import('amqp-emulator');
       const server = new AmqpServer();
       expect(server.port).to.be.undefined;
       expect(server.host).to.equal('localhost');
@@ -332,7 +332,7 @@ Feature('Connection', () => {
     });
 
     And('listening on a taken port rejects', async () => {
-      const { AmqpServer } = await import('@0dep/amqp-emulator');
+      const { AmqpServer } = await import('amqp-emulator');
       const first = new AmqpServer();
       const { port } = await first.listen();
       const second = new AmqpServer();
@@ -344,7 +344,7 @@ Feature('Connection', () => {
     });
 
     And('listening on all interfaces yields a localhost url', async () => {
-      const { AmqpServer } = await import('@0dep/amqp-emulator');
+      const { AmqpServer } = await import('amqp-emulator');
       const server = new AmqpServer();
       const { url } = await server.listen(0, '0.0.0.0');
       expect(url).to.match(/^amqp:\/\/localhost:\d+$/);
@@ -352,7 +352,7 @@ Feature('Connection', () => {
     });
 
     And('listening on ipv6 brackets the host', async () => {
-      const { AmqpServer } = await import('@0dep/amqp-emulator');
+      const { AmqpServer } = await import('amqp-emulator');
       const server = new AmqpServer();
       const { url } = await server.listen(0, '::1');
       expect(url).to.match(/^amqp:\/\/\[::1\]:\d+$/);

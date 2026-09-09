@@ -1,4 +1,4 @@
-import { encodeAmqp10 as encode, amqp10Typed as typed } from '@0dep/amqp-emulator';
+import { encodeAmqp10 as encode, amqp10Typed as typed } from 'amqp-emulator';
 
 import { startServer, tick } from '../helpers/index.js';
 import { Raw10Client, AMQP_HEADER, SASL_HEADER } from '../helpers/raw10-client.js';
@@ -26,7 +26,7 @@ Feature('AMQP 1.0 protocol edge cases', () => {
 
   /** the most recently accepted 1.0 connection */
   function lastConnection() {
-    return /** @type {import('@0dep/amqp-emulator').Amqp10Connection} */ ([...ctx.server.connections].at(-1));
+    return /** @type {import('amqp-emulator').Amqp10Connection} */ ([...ctx.server.connections].at(-1));
   }
 
   Scenario('SASL failures', () => {
@@ -161,7 +161,7 @@ Feature('AMQP 1.0 protocol edge cases', () => {
     });
 
     Then('the server keeps its own limits', () => {
-      const connection = /** @type {import('@0dep/amqp-emulator').Amqp10Connection} */ ([...limited.server.connections].at(-1));
+      const connection = /** @type {import('amqp-emulator').Amqp10Connection} */ ([...limited.server.connections].at(-1));
       expect(connection.channelMax).to.equal(0xffff);
       expect(connection.maxFrameSize).to.equal(131072);
       expect(connection.supportsBlocked).to.be.false;
@@ -467,7 +467,7 @@ Feature('AMQP 1.0 protocol edge cases', () => {
       ctx.server.disconnect();
       const close = await client.waitFor('close');
       expect(close.performative.error).to.deep.equal({ $type: 'error', condition: 'amqp:internal-error', description: 'going away' });
-      const { encodeAmqp10Frame } = await import('@0dep/amqp-emulator');
+      const { encodeAmqp10Frame } = await import('amqp-emulator');
       client.write(
         Buffer.concat([
           encodeAmqp10Frame(0, 0, { $type: 'close' }),

@@ -181,7 +181,8 @@ Feature('Azure Service Bus SDK', function () {
       expect(soon.toNumber()).to.be.above(0);
       await sender.cancelScheduledMessages([later]);
       expect(ctx.server.getBroker().getQueue('peekable').messageCount).to.equal(2);
-      mock.timers.tick(500);
+      mock.timers.tick(100); // a sweep runs while the message is still scheduled ahead
+      mock.timers.tick(400); // now past its scheduled time, so it is enqueued
       // the SDK continues peeking after the last peeked sequence number, so only the new message shows up
       const peeked = await receiver.peekMessages(5);
       expect(peeked.map((m) => m.body)).to.deep.equal(['soon']);
@@ -199,7 +200,8 @@ Feature('Azure Service Bus SDK', function () {
     And('an expired lock puts the message back with a higher delivery count', async () => {
       const [message] = await receiver.receiveMessages(1, { maxWaitTimeInMs: 2000 });
       expect(message.body).to.equal('two');
-      mock.timers.tick(600);
+      mock.timers.tick(100); // a sweep runs while the lock is still held
+      mock.timers.tick(600); // now past the lock duration, so it expires
       const err = await receiver.completeMessage(message).catch((e) => e);
       expect(err).to.have.property('code', 'MessageLockLost');
       const [again] = await receiver.receiveMessages(1, { maxWaitTimeInMs: 2000 });

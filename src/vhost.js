@@ -1,9 +1,8 @@
 import { Broker } from 'smqp';
 
-import { kConsumerEntry } from './shared.js';
 import { ServiceBus } from './servicebus/servicebus.js';
 
-/** @type {Array<[string, string]>} */
+/** @type {Array<[string, import('smqp').exchangeType]>} */
 const DEFAULT_EXCHANGES = [
   ['amq.direct', 'direct'],
   ['amq.fanout', 'fanout'],
@@ -23,8 +22,6 @@ export class VHost {
     this.server = server;
     /** @type {import('smqp').Broker} */
     this.broker = new Broker(this);
-    /** @type {Map<string, string>} declared AMQP exchange type by name, smqp only knows topic and direct */
-    this.exchangeTypes = new Map();
     /** @type {Map<string, number>} exclusive queue name -> owning connection id */
     this.exclusiveQueues = new Map();
     /** @type {import('types').Publishing | null} channel currently publishing, for basic.return correlation */
@@ -66,30 +63,16 @@ export class VHost {
    * @returns {string | undefined} AMQP exchange type if the exchange exists
    */
   getExchangeType(name) {
-    if (!this.broker.getExchange(name)) {
-      this.exchangeTypes.delete(name);
-      return undefined;
-    }
-    return this.exchangeTypes.get(name);
+    return this.broker.getExchange(name)?.type;
   }
 
   /**
    * @param {string} name
-   * @param {string} type AMQP exchange type: direct, topic or fanout
+   * @param {import('smqp').exchangeType} type AMQP exchange type: direct, topic or fanout
    * @param {import('smqp').ExchangeOptions} [options]
    */
   declareExchange(name, type, options) {
-    this.broker.assertExchange(name, type === 'direct' ? 'direct' : 'topic', options);
-    this.exchangeTypes.set(name, type);
-  }
-
-  /**
-   * Binding pattern for an exchange type; fanout ignores the routing key
-   * @param {string} exchangeName
-   * @param {string} routingKey
-   */
-  bindingPattern(exchangeName, routingKey) {
-    return this.exchangeTypes.get(exchangeName) === 'fanout' ? '#' : routingKey;
+    this.broker.assertExchange(name, type, options);
   }
 
   /**
@@ -104,8 +87,8 @@ export class VHost {
     const consumers = queue.consumers;
     const result = this.broker.deleteQueue(queueName);
     for (const consumer of consumers) {
-      /** @type {import('types').ConsumerEntry | undefined} */
-      const entry = /** @type {any} */ (consumer)[kConsumerEntry];
+      /** @type {import('types').ConsumerEntry | undefined} consume owner, absent for consumers created through the broker api */
+      const entry = /** @type {any} */ (consumer).owner;
       if (entry) entry.channel.onConsumerCancelled(entry);
     }
     return result;
@@ -132,7 +115,6 @@ export class VHost {
     this.publishing = null;
     this.#serviceBus = null;
     this.broker.reset();
-    this.exchangeTypes.clear();
     this.exclusiveQueues.clear();
     this.#declareDefaults();
   }

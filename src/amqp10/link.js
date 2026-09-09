@@ -1,4 +1,4 @@
-import { generateId, kConsumerEntry, detachConsumerMessages } from '../shared.js';
+import { generateId } from '../shared.js';
 import { decodeMessage, encodeMessage, toSmqp } from './message.js';
 import { reorderUuid } from '../servicebus/servicebus.js';
 
@@ -252,7 +252,7 @@ export class Link {
     if (this.sending) {
       this.#tempQueue = `amq.gen-${generateId()}`;
       this.broker.assertQueue(this.#tempQueue, { durable: false, autoDelete: true });
-      this.broker.bindQueue(this.#tempQueue, exchange, this.vhost.bindingPattern(exchange, routingKey));
+      this.broker.bindQueue(this.#tempQueue, exchange, routingKey);
     }
     return resolved;
   }
@@ -291,25 +291,23 @@ export class Link {
   #consume() {
     const queueName = this.#tempQueue ?? /** @type {{ queue: string }} */ (this.address).queue;
     const queue = this.broker.getQueue(queueName);
-    // credit starts at zero, so grab nothing while attaching and let flow frames open the tap
-    const consumer = /** @type {any} */ (
-      queue.consume((_routingKey, message) => this.#deliver(message), {
-        consumerTag: `amqp10.${this.connection.id}.${this.session.channel}.${this.handle}`,
-        prefetch: 0,
-      })
-    );
-    consumer.prefetch(Infinity);
-    const capacityProp = Object.getOwnPropertyDescriptor(Object.getPrototypeOf(consumer), 'capacity');
-    Object.defineProperty(consumer, 'capacity', {
-      get: () => Math.max(0, Math.min(capacityProp.get.call(consumer), this.credit)),
-    });
-    consumer[kConsumerEntry] = {
+    /** @type {import('types').ConsumerEntry} the consumer owner, so vhost.deleteQueue can tell us */
+    const entry = {
       tag: this.name,
       noAck: false,
-      consumer,
+      consumer: null,
       channel: { onConsumerCancelled: () => this.#detach(new LinkError('amqp:resource-deleted', `queue '${queueName}' was deleted`)) },
     };
-    this.#consumer = consumer;
+    // credit starts at zero, so grab nothing while attaching and let flow frames open the tap
+    entry.consumer = this.#consumer = queue.consume(
+      (_routingKey, message) => this.#deliver(message),
+      {
+        consumerTag: `amqp10.${this.connection.id}.${this.session.channel}.${this.handle}`,
+        prefetch: Infinity,
+        capacity: () => this.credit,
+      },
+      entry,
+    );
   }
 
   /** @param {boolean} [drain] echo the drain flag when answering a drain */
@@ -333,8 +331,7 @@ export class Link {
     if (!this.sending) return;
     const remoteDeliveryCount = flow.deliveryCount ?? this.deliveryCount;
     this.credit = Math.max(0, remoteDeliveryCount + (flow.linkCredit ?? 0) - this.deliveryCount);
-    // eslint-disable-next-line dot-notation
-    if (this.#consumer && this.credit) this.#consumer.queue['_consumeNext']();
+    if (this.#consumer && this.credit) this.#consumer.queue.consumeNext();
     if (flow.drain) {
       this.deliveryCount += this.credit;
       this.credit = 0;
@@ -573,9 +570,8 @@ export class Link {
     this.#closed = true;
     if (this.#consumer) {
       // Service Bus locks outlive the link, so keep delivered-but-locked messages pending like a 0-9-1 basic.cancel;
-      // plain AMQP 1.0 requeues its delivered-unsettled messages, which cancel(true) does
-      if (this.serviceBus) detachConsumerMessages(this.#consumer);
-      this.#consumer.cancel(true);
+      // plain AMQP 1.0 requeues its delivered-unsettled messages
+      this.#consumer.cancel(this.serviceBus ? { keepPending: true } : true);
       this.#consumer = null;
     }
     for (const [deliveryId, entry] of this.unsettled) {

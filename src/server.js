@@ -5,6 +5,7 @@ import { AmqpConnection, PROTOCOL_HEADER } from './amqp09/connection.js';
 import { Amqp10Connection } from './amqp10/connection.js';
 import { AMQP_HEADER, SASL_HEADER } from './amqp10/types.js';
 import { VHost } from './vhost.js';
+import { Shovel } from './shovel.js';
 import { AmqpError } from './amqp09/errors.js';
 import { constants } from './amqp09/defs.js';
 
@@ -49,6 +50,8 @@ export class AmqpServer extends EventEmitter {
     this.options = { ...DEFAULT_OPTIONS, ...options };
     /** @type {Map<string, VHost>} */
     this.vhosts = new Map();
+    /** @type {Map<string, Shovel>} */
+    this.shovels = new Map();
     /** @type {Set<AnyConnection>} */
     this.connections = new Set();
     /** @type {string | null} reason passed to block(), null when not blocked */
@@ -155,6 +158,31 @@ export class AmqpServer extends EventEmitter {
   }
 
   /**
+   * Create a shovel that moves messages from a source queue to a destination exchange or queue,
+   * optionally across vhosts. The source message is acked once the destination publish is accepted.
+   * @param {string} name unique shovel name
+   * @param {import('./shovel.js').ShovelConfig} config
+   * @returns {Shovel}
+   */
+  shovel(name, config) {
+    if (this.shovels.has(name)) throw new Error(`Shovel ${name} already exists`);
+    const shovel = new Shovel(name, config, this);
+    this.shovels.set(name, shovel);
+    return shovel;
+  }
+
+  /**
+   * Close and forget a shovel by name
+   * @param {string} name
+   */
+  closeShovel(name) {
+    const shovel = this.shovels.get(name);
+    if (!shovel) return;
+    shovel.close();
+    this.shovels.delete(name);
+  }
+
+  /**
    * Message, unacked and consumer counts for a vhost, totals and per queue
    * @param {string} [vhost] defaults to '/'
    * @returns {import('smqp').BrokerStats}
@@ -188,6 +216,8 @@ export class AmqpServer extends EventEmitter {
   reset() {
     this.#dropPending();
     for (const connection of [...this.connections]) connection.destroy();
+    for (const shovel of this.shovels.values()) shovel.close();
+    this.shovels.clear();
     for (const vhost of this.vhosts.values()) vhost.reset();
     this.blockedReason = null;
   }
@@ -215,6 +245,8 @@ export class AmqpServer extends EventEmitter {
   close() {
     this.#dropPending();
     for (const connection of [...this.connections]) connection.destroy();
+    for (const shovel of this.shovels.values()) shovel.close();
+    this.shovels.clear();
     for (const vhost of this.vhosts.values()) vhost.close();
     return new Promise((resolve) => {
       if (!this.server.listening) return resolve();

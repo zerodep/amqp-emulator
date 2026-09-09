@@ -1,7 +1,7 @@
 import { constants } from './defs.js';
 import { AmqpError, notFound, preconditionFailed, accessRefused, notImplemented, commandInvalid, unexpectedFrame } from './errors.js';
 import { decodeProperties } from './codec.js';
-import { generateId, kWireProperties, kConsumerEntry, detachConsumerMessages, wireProperties } from '../shared.js';
+import { generateId, kWireProperties, wireProperties } from '../shared.js';
 
 const SUPPORTED_EXCHANGE_TYPES = new Set(['direct', 'topic', 'fanout']);
 
@@ -203,22 +203,16 @@ export class AmqpChannel {
    */
   #poke() {
     if (!this.globalPrefetch) return;
-    for (const { consumer } of this.consumers.values()) {
-      // smqp only re-evaluates the queue whose message was acked, other queues consumed on this channel need a nudge
-      // eslint-disable-next-line dot-notation
-      if (consumer.ready && !consumer.queue.stopped) consumer.queue['_consumeNext']();
-    }
+    // smqp only re-evaluates the queue whose message was acked, other queues consumed on this channel need a nudge
+    for (const { consumer } of this.consumers.values()) consumer.queue.consumeNext();
   }
 
   /**
-   * Clamp a consumer capacity by the channel-wide prefetch
-   * @param {number} consumerCapacity
+   * Room left under the channel-wide prefetch, the smqp consumer capacity hook
    */
-  #capacity(consumerCapacity) {
-    if (!this.globalPrefetch) return consumerCapacity;
-    const room = this.globalPrefetch - this.unacked.size;
-    if (room <= 0) return 0;
-    return Math.min(room, consumerCapacity);
+  #room() {
+    if (!this.globalPrefetch) return Infinity;
+    return Math.max(0, this.globalPrefetch - this.unacked.size);
   }
 
   /**
@@ -360,7 +354,11 @@ export class AmqpChannel {
           if (type === 'headers') throw notImplemented(`exchange type 'headers' is not supported by the emulator`, method);
           throw commandInvalid(`unknown exchange type '${type}'`, method);
         }
-        vhost.declareExchange(exchange, type, { durable: !!durable, autoDelete: !!autoDelete, internal: !!internal });
+        vhost.declareExchange(exchange, /** @type {import('smqp').exchangeType} */ (type), {
+          durable: !!durable,
+          autoDelete: !!autoDelete,
+          internal: !!internal,
+        });
       }
       if (!nowait) this.send('exchange.declare-ok', {});
     },
@@ -372,7 +370,6 @@ export class AmqpChannel {
         if (ifUnused && existing.bindingCount)
           throw preconditionFailed(`exchange '${exchange}' in vhost '${this.vhost.name}' in use`, method);
         this.broker.deleteExchange(exchange);
-        this.vhost.exchangeTypes.delete(exchange);
       }
       if (!nowait) this.send('exchange.delete-ok', {});
     },
@@ -383,7 +380,7 @@ export class AmqpChannel {
       this.#assertExchangeName(source, method, true);
       this.#assertExchangeName(destination, method, true);
       try {
-        this.broker.bindExchange(source, destination, vhost.bindingPattern(source, routingKey), args);
+        this.broker.bindExchange(source, destination, routingKey, args);
       } catch (/** @type {any} */ err) {
         if (err.code !== 'ERR_SMQP_SHOVEL_NAME_CONFLICT') throw err;
       }
@@ -393,7 +390,7 @@ export class AmqpChannel {
       const vhost = this.vhost;
       if (!vhost.getExchangeType(source)) throw notFound('exchange', source, vhost.name, method);
       if (!vhost.getExchangeType(destination)) throw notFound('exchange', destination, vhost.name, method);
-      this.broker.unbindExchange(source, destination, vhost.bindingPattern(source, routingKey));
+      this.broker.unbindExchange(source, destination, routingKey);
       if (!nowait) this.send('exchange.unbind-ok', {});
     },
 
@@ -457,14 +454,14 @@ export class AmqpChannel {
       this.#assertExclusiveOwner(queue.name, method);
       if (exchange === '') throw accessRefused('operation not permitted on the default exchange', method);
       if (!vhost.getExchangeType(exchange)) throw notFound('exchange', exchange, vhost.name, method);
-      this.broker.bindQueue(queue.name, exchange, vhost.bindingPattern(exchange, routingKey), { arguments: args });
+      this.broker.bindQueue(queue.name, exchange, routingKey, { arguments: args });
       if (!nowait) this.send('queue.bind-ok', {});
     },
     'queue.unbind'({ queue: queueName, exchange, routingKey }, method) {
       const vhost = this.vhost;
       const queue = this.#getQueue(queueName, method);
       if (!vhost.getExchangeType(exchange)) throw notFound('exchange', exchange, vhost.name, method);
-      this.broker.unbindQueue(queue.name, exchange, vhost.bindingPattern(exchange, routingKey));
+      this.broker.unbindQueue(queue.name, exchange, routingKey);
       this.send('queue.unbind-ok', {});
     },
     'queue.purge'({ queue: queueName, nowait }, method) {
@@ -509,29 +506,25 @@ export class AmqpChannel {
 
       /** @type {import('types').ConsumerEntry} */
       const entry = { tag, noAck: !!fields.noAck, channel: this, consumer: null };
-      const prefetch = this.prefetchCount || Infinity;
       this.#deferred = [];
       try {
-        // smqp grabs messages while creating the consumer, so the initial prefetch must respect channel-wide capacity
-        entry.consumer = queue.consume((_routingKey, message) => this.#deliver(entry, message), {
-          consumerTag: `${this.connection.id}.${this.id}.${tag}`,
-          noAck: entry.noAck,
-          exclusive: !!fields.exclusive,
-          prefetch: this.#capacity(prefetch),
-          priority: fields.arguments?.['x-priority'] || 0,
-        });
+        entry.consumer = queue.consume(
+          (_routingKey, message) => this.#deliver(entry, message),
+          {
+            consumerTag: `${this.connection.id}.${this.id}.${tag}`,
+            noAck: entry.noAck,
+            exclusive: !!fields.exclusive,
+            prefetch: this.prefetchCount || Infinity,
+            capacity: () => this.#room(),
+            priority: fields.arguments?.['x-priority'] || 0,
+          },
+          entry,
+        );
       } catch (err) {
         this.#deferred = null;
         throw err;
       }
 
-      const consumer = /** @type {any} */ (entry.consumer);
-      consumer.prefetch(prefetch);
-      consumer[kConsumerEntry] = entry;
-      const capacityProp = Object.getOwnPropertyDescriptor(Object.getPrototypeOf(consumer), 'capacity');
-      Object.defineProperty(consumer, 'capacity', {
-        get: () => this.#capacity(capacityProp.get.call(consumer)),
-      });
       this.consumers.set(tag, entry);
 
       if (!fields.nowait) this.send('basic.consume-ok', { consumerTag: tag });
@@ -544,8 +537,8 @@ export class AmqpChannel {
       const entry = this.consumers.get(consumerTag);
       if (entry) {
         this.consumers.delete(consumerTag);
-        detachConsumerMessages(entry.consumer);
-        entry.consumer.cancel(true);
+        // AMQP basic.cancel leaves already delivered messages unacked on the channel
+        entry.consumer.cancel({ keepPending: true });
       }
       if (!nowait) this.send('basic.cancel-ok', { consumerTag });
     },

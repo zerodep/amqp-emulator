@@ -1,10 +1,10 @@
 import amqplib from 'amqplib';
 
-import { AmqpServer } from '@0dep/amqp-emulator';
+import { AmqpServer } from 'amqp-emulator';
 
 /**
  * Start an emulator on a random port and track clients so tests can tear everything down
- * @param {import('@0dep/amqp-emulator').ServerOptions} [options]
+ * @param {import('amqp-emulator').ServerOptions} [options]
  */
 export async function startServer(options) {
   const server = new AmqpServer({ heartbeat: 0, ...options });

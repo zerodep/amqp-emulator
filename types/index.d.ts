@@ -1,4 +1,4 @@
-declare module '@0dep/amqp-emulator' {
+declare module 'amqp-emulator' {
 	import type { EventEmitter } from 'node:events';
 	import type { default as net } from 'node:net';
 	import type { Consumer } from 'smqp';
@@ -45,6 +45,8 @@ declare module '@0dep/amqp-emulator' {
 		
 		vhosts: Map<string, VHost>;
 		
+		shovels: Map<string, Shovel>;
+		
 		connections: Set<AnyConnection_1>;
 		/** @type {string | null} reason passed to block(), null when not blocked */
 		blockedReason: string | null;
@@ -77,6 +79,16 @@ declare module '@0dep/amqp-emulator' {
 		 * @param vhost defaults to '/'
 		 */
 		serviceBus(vhost?: string): ServiceBus;
+		/**
+		 * Create a shovel that moves messages from a source queue to a destination exchange or queue,
+		 * optionally across vhosts. The source message is acked once the destination publish is accepted.
+		 * @param name unique shovel name
+		 * */
+		shovel(name: string, config: ShovelConfig): Shovel;
+		/**
+		 * Close and forget a shovel by name
+		 * */
+		closeShovel(name: string): void;
 		/**
 		 * Message, unacked and consumer counts for a vhost, totals and per queue
 		 * @param vhost defaults to '/'
@@ -431,8 +443,6 @@ declare module '@0dep/amqp-emulator' {
 		server: AmqpServer;
 		
 		broker: import("smqp").Broker;
-		/** @type {Map<string, string>} declared AMQP exchange type by name, smqp only knows topic and direct */
-		exchangeTypes: Map<string, string>;
 		/** @type {Map<string, number>} exclusive queue name -> owning connection id */
 		exclusiveQueues: Map<string, number>;
 		/** @type {import('../types/interfaces.d.ts').Publishing | null} channel currently publishing, for basic.return correlation */
@@ -449,11 +459,7 @@ declare module '@0dep/amqp-emulator' {
 		 * @param type AMQP exchange type: direct, topic or fanout
 		 * 
 		 */
-		declareExchange(name: string, type: string, options?: import("smqp").ExchangeOptions): void;
-		/**
-		 * Binding pattern for an exchange type; fanout ignores the routing key
-		 * */
-		bindingPattern(exchangeName: string, routingKey: string): string;
+		declareExchange(name: string, type: import("smqp").exchangeType, options?: import("smqp").ExchangeOptions): void;
 		/**
 		 * Delete a queue and notify channels consuming from it
 		 * */
@@ -470,6 +476,66 @@ declare module '@0dep/amqp-emulator' {
 		reset(): void;
 		#private;
 	}
+	/**
+	 * RabbitMQ style shovel: consume a source queue and republish every message to a destination
+	 * exchange (with a routing key) or queue. Either side may be this emulator or a remote broker
+	 * reached over AMQP with a `uri`. On-confirm semantics — the source message is acked once the
+	 * destination has accepted the message (a remote destination is published in confirm mode).
+	 */
+	export class Shovel {
+		/**
+		 * @param name unique shovel name
+		 * */
+		constructor(name: string, config: ShovelConfig, server: AmqpServer);
+		name: string;
+		source: ShovelSource;
+		destination: ShovelDestination;
+		/** Resolves once the shovel is connected and consuming; rejects if a remote leg fails to connect */
+		ready: Promise<void>;
+		/** Stop the shovel, cancelling the source consumer and dropping any remote connections */
+		close(): void;
+		#private;
+	}
+	type ShovelSource = {
+		/**
+		 * source queue to consume
+		 */
+		queue: string;
+		/**
+		 * amqp uri of a remote broker to consume from; omit for this emulator
+		 */
+		uri?: string;
+		/**
+		 * vhost the source queue lives in when local, defaults to '/'
+		 */
+		vhost?: string;
+	};
+	type ShovelDestination = {
+		/**
+		 * destination exchange to publish to
+		 */
+		exchange?: string;
+		/**
+		 * routing key for the destination exchange, defaults to the message's own
+		 */
+		routingKey?: string;
+		/**
+		 * destination queue to publish to, when no exchange is given
+		 */
+		queue?: string;
+		/**
+		 * amqp uri of a remote broker to publish to; omit for this emulator
+		 */
+		uri?: string;
+		/**
+		 * vhost the destination lives in when local, defaults to '/'
+		 */
+		vhost?: string;
+	};
+	type ShovelConfig = {
+		source: ShovelSource;
+		destination: ShovelDestination;
+	};
 	/**
 	 * Protocol-level error that maps to a channel.close or connection.close
 	 */
@@ -500,6 +566,40 @@ declare module '@0dep/amqp-emulator' {
 		
 		feed(chunk: Buffer): Frame_1[];
 	}
+	/**
+	 * Minimal outbound AMQP 0-9-1 client used by the shovel to reach a remote broker. It speaks
+	 * just enough of the protocol to consume a queue and confirm-publish, built on this package's
+	 * own codec so the shovel needs no third party client at runtime.
+	 */
+	export class AmqpClient {
+		/** @param uri e.g. amqp://user:pass@host:5672/vhost */
+		constructor(uri: string);
+		/** Connect, run the handshake and open a channel */
+		connect(): Promise<void>;
+		/** Put the channel into publisher confirm mode */
+		selectConfirms(): Promise<void>;
+		/**
+		 * Publish and resolve when the broker confirms it (basic.ack).
+		 * */
+		publishConfirm(exchange: string, routingKey: string, content: Buffer, properties?: MessageProperties_1): Promise<void>;
+		/**
+		 * Consume a queue; `onDelivery` is called for every message with its content and properties.
+		 * */
+		consume(queue: string, onDelivery: (delivery: ClientDelivery) => void): Promise<void>;
+		
+		ack(deliveryTag: number): void;
+		/** Drop the connection */
+		close(): void;
+		#private;
+	}
+	type ClientDelivery = {
+		/**
+		 * basic.deliver fields (deliveryTag, exchange, routingKey)
+		 */
+		fields: MethodFields_1;
+		properties: MessageProperties_1;
+		content: Buffer;
+	};
   interface ServerOptions_1 {
 	/** suggested heartbeat interval in seconds, defaults to 60, 0 disables heartbeats */
 	heartbeat?: number;

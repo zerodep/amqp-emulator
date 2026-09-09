@@ -13,10 +13,12 @@ export { resolveAddress as resolveAmqp10Address } from './amqp10/link.js';
 export { ServiceBus, ServiceBusError } from './servicebus/servicebus.js';
 export { AmqpChannel } from './amqp09/channel.js';
 export { VHost } from './vhost.js';
+export { Shovel } from './shovel.js';
 export { AmqpError } from './amqp09/errors.js';
 export { constants, methods } from './amqp09/defs.js';
 export { encodeMethod, decodeMethod, encodeProperties, decodeProperties, BufferReader, BufferWriter } from './amqp09/codec.js';
 export { FrameParser } from './amqp09/frame.js';
+export { AmqpClient } from './amqp09/client.js';
 
 /**
  * @typedef {import('types').ServerOptions} ServerOptions

@@ -8,22 +8,6 @@ export function generateId() {
 /** Symbol under which the original wire properties are kept on smqp message properties */
 export const kWireProperties = Symbol.for('amqp-emulator wire properties');
 
-/** Symbol under which the owning channel consumer entry is kept on an smqp consumer */
-export const kConsumerEntry = Symbol.for('amqp-emulator consumer entry');
-
-const SMQP_INTERNAL_QUEUE = Symbol.for('internalQueue');
-
-/**
- * Detach messages held by an smqp consumer so a subsequent cancel does not requeue them.
- * AMQP basic.cancel leaves already delivered messages unacked on the channel; smqp cancel would requeue them.
- * @param {import('smqp').Consumer} consumer
- */
-export function detachConsumerMessages(consumer) {
-  /** @type {import('smqp').Queue | undefined} */
-  const internalQueue = /** @type {any} */ (consumer)[SMQP_INTERNAL_QUEUE];
-  if (internalQueue) internalQueue.messages.splice(0);
-}
-
 /**
  * Pick the properties that go on the wire from smqp message properties
  * @param {import('smqp').MessageProperties} properties

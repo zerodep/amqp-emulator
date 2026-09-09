@@ -72,7 +72,7 @@ Feature('Service Bus dialect over raw rhea links', function () {
       mock.timers.enable({ apis: ['Date', 'setInterval'] });
       ctx = await startServer();
       connection = await connectAsSdk(ctx);
-      expect(/** @type {import('@0dep/amqp-emulator').Amqp10Connection} */ (ctx.server.connections.values().next().value).dialect).to.equal(
+      expect(/** @type {import('amqp-emulator').Amqp10Connection} */ (ctx.server.connections.values().next().value).dialect).to.equal(
         'servicebus',
       );
     });

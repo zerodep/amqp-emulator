@@ -1,4 +1,6 @@
-# @0dep/amqp-emulator
+# amqp-emulator
+
+[![Build](https://github.com/zerodep/amqp-emulator/actions/workflows/build.yaml/badge.svg)](https://github.com/zerodep/amqp-emulator/actions/workflows/build.yaml)
 
 AMQP broker emulator for tests. It listens on a real TCP port and speaks both AMQP 0-9-1 and AMQP 1.0 on that port, so any client works against it: [amqplib](https://www.npmjs.com/package/amqplib), rascal, amqp-connection-manager and pika over 0-9-1, [rhea](https://www.npmjs.com/package/rhea) and other 1.0 clients over 1.0, and the [Azure Service Bus SDK](https://www.npmjs.com/package/@azure/service-bus) through its Service Bus dialect. All of them share the same queues, so a Service Bus sender can feed an amqplib consumer. Broker semantics come from [smqp](https://www.npmjs.com/package/smqp).
 
@@ -8,7 +10,7 @@ It is not RabbitMQ. It is small, in memory, single process, and meant to make in
 
 ```javascript
 import amqplib from 'amqplib';
-import { AmqpServer } from '@0dep/amqp-emulator';
+import { AmqpServer } from 'amqp-emulator';
 
 const server = new AmqpServer();
 const { url } = await server.listen(); // random free port on 127.0.0.1
@@ -29,7 +31,7 @@ Seed or inspect the broker directly from the test side:
 
 ```javascript
 import amqplib from 'amqplib';
-import { AmqpServer } from '@0dep/amqp-emulator';
+import { AmqpServer } from 'amqp-emulator';
 
 const server = new AmqpServer();
 const { url } = await server.listen();
@@ -54,7 +56,7 @@ AMQP 1.0 clients connect to the same port. Queues are addressed by name, exchang
 
 ```javascript
 import rhea from 'rhea';
-import { AmqpServer } from '@0dep/amqp-emulator';
+import { AmqpServer } from 'amqp-emulator';
 
 const server = new AmqpServer();
 const { port } = await server.listen();
@@ -80,7 +82,7 @@ The Azure Service Bus SDK connects with a development emulator connection string
 
 ```javascript
 import { ServiceBusClient } from '@azure/service-bus';
-import { AmqpServer } from '@0dep/amqp-emulator';
+import { AmqpServer } from 'amqp-emulator';
 
 const server = new AmqpServer();
 const { port } = await server.listen();
@@ -119,7 +121,8 @@ await server.close();
 - `getBroker([vhost])` the smqp broker behind a vhost, for inspecting queues or seeding messages. Seeded content may be a Buffer, a string or an object; objects are delivered as JSON.
 - `getStats([vhost])` message, unacked and consumer counts, totals and per queue, handy for assertions.
 - `serviceBus([vhost])` the Service Bus layer of a vhost: `createQueue(name)`, `createTopic(name)`, `createSubscription(topic, name)`, plus `locks`, `deferred` and `scheduled` for inspection. Queues and subscriptions are also created on first use, topics must be created up front since a bare name otherwise means a queue.
-- `getVHost([vhost])` the vhost wrapper with `broker`, declared `exchangeTypes` and `exclusiveQueues`.
+- `getVHost([vhost])` the vhost wrapper with `broker` and `exclusiveQueues`.
+- `shovel(name, { source, destination })` a RabbitMQ style shovel that consumes `source.queue` and republishes to `destination.exchange` (with `routingKey`, defaulting to the message's own) or `destination.queue`, acking the source once the destination has it. `source` and `destination` default to this emulator; give either a `uri` (`amqp://user:pass@host:port/vhost`) to reach a remote broker over AMQP instead, or a `vhost` to use another local vhost. Returns the `Shovel`; a remote leg connects asynchronously, so `await shovel.ready` before relying on it. `closeShovel(name)` stops one; `reset()` and `close()` stop them all.
 - `connections` set of live `AmqpConnection` objects, each with `channels`, `user`, `vhost`, `clientProperties`.
 - `disconnect([reason], [code])` sends `connection.close` to every client, 320 CONNECTION_FORCED by default. Useful for testing reconnect logic.
 - `block([reason])` / `unblock()` send `connection.blocked` / `connection.unblocked` to clients that support it.

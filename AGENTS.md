@@ -4,14 +4,14 @@ Guidance for agents working in this repository.
 
 ## What this is
 
-`@0dep/amqp-emulator` is an AMQP broker emulator that listens on a real TCP port and speaks 0-9-1 and 1.0 on the same port, sniffing the 8 byte protocol header. Broker semantics (exchanges, queues, bindings, acks, dead lettering, ttl) come from `smqp`; this package adds the wire protocols, connection, channel, session and link state, and RabbitMQ-like error behaviour on top. ESM only, Node 24+.
+`amqp-emulator` is an AMQP broker emulator that listens on a real TCP port and speaks 0-9-1 and 1.0 on the same port, sniffing the 8 byte protocol header. Broker semantics (exchanges, queues, bindings, acks, dead lettering, ttl) come from `smqp`; this package adds the wire protocols, connection, channel, session and link state, and RabbitMQ-like error behaviour on top. ESM only, Node 24+.
 
 ## Working rules
 
 - **TDD.** Write or extend a scenario in `test/feature/*-feature.js` first, run it red, then change `src/`. Coverage is 100% statements, branches, functions and lines and must stay there: `npx c8 -n src -r text mocha`. If a line cannot be reached from a test, delete it rather than leave it.
 - **BDD with mocha-cakes-2.** `Feature` / `Scenario` / `Given` / `When` / `Then` / `And`. Every step is a mocha test, so a feature level `afterEach` runs after every step. Use `afterEachScenario` for per scenario cleanup. Steps share state through `let` variables declared in the scenario.
 - **Real clients.** Tests drive the emulator with amqplib (0-9-1), rhea (1.0) and `@azure/service-bus` (Service Bus dialect) over TCP (`test/helpers/index.js` starts a server on a random port and tracks amqplib connections). Protocol edge cases the clients cannot produce use `test/helpers/raw091-client.js` and `test/helpers/raw10-client.js`, minimal frame level clients built on this package's codecs.
-- **Import the package by name in tests** (`@0dep/amqp-emulator`) so `tsc -p test` type checks tests against the generated `types/index.d.ts`.
+- **Import the package by name in tests** (`amqp-emulator`) so `tsc -p test` type checks tests against the generated `types/index.d.ts`.
 - **No commits, no branches.** The user reviews and commits.
 - `npm test` runs mocha, then `posttest`: eslint + prettier, `dts-buddy` type generation, `tsc -p test` and `texample ./README.md`, which executes every ` ```javascript ` block in the README against the real package. Use ` ```js ` for snippets that must not run. All must pass.
 
@@ -19,8 +19,9 @@ Guidance for agents working in this repository.
 
 - `spec/amqp-rabbitmq-0.9.1.json` RabbitMQ's protocol spec. `scripts/generate-amqp09-defs.js` turns it into `src/amqp09/defs.js` (`npm run generate:amqp09`). Never edit `defs.js` by hand. The generator asserts no method has more than 8 consecutive bit arguments, which the codec relies on.
 - `src/amqp09/codec.js` table driven method and property encoding, field tables with amqplib compatible type tags (`{ '!': 'timestamp', value }` etc.). `src/amqp09/frame.js` incremental frame parser.
-- `src/server.js` `AmqpServer`: net server, vhosts, block/unblock, disconnect, reset.
-- `src/vhost.js` `VHost`: one smqp `Broker` plus what smqp lacks: AMQP exchange type per name (smqp only has topic and direct; fanout is topic with a `#` binding), exclusive queue ownership, and the `publishing` slot used to correlate `basic.return`.
+- `src/server.js` `AmqpServer`: net server, vhosts, block/unblock, disconnect, reset, shovels.
+- `src/shovel.js` `Shovel`: RabbitMQ style shovel created with `server.shovel(name, { source, destination })`. Consumes a source queue and republishes to a destination exchange (routing key, or the message's own as fallback) or queue, across vhosts, acking the source on-confirm. Either side may be remote via a `uri`; the remote leg speaks 0-9-1 through `src/amqp09/client.js` `AmqpClient`, a minimal outbound client built on this package's own codec so nothing is added to runtime deps. Registered in `server.shovels`, closed on `server.close`/`reset` and by `server.closeShovel(name)`. A remote leg connects asynchronously; `shovel.ready` resolves once it is consuming (rejects if a remote connect fails).
+- `src/vhost.js` `VHost`: one smqp `Broker` plus what smqp lacks: exclusive queue ownership and the `publishing` slot used to correlate `basic.return`.
 - `src/amqp09/connection.js` `AmqpConnection`: protocol header, start/tune/open handshake, frame dispatch, heartbeats, close handshake. Internals are `#private`.
 - `src/amqp09/channel.js` `AmqpChannel`: method handlers live in a `static #handlers` map inside the class body so they can reach private members; they run with the channel as `this`. Public methods called by connection and vhost: `teardown`, `onConsumerCancelled`, `onReturn`, `close`.
 - `src/amqp09/errors.js` `AmqpError` carries `code`, `replyText`, `killConnection` and the offending `method`. Channel level errors become `channel.close`, connection level ones `connection.close`. Anything thrown that is not an `AmqpError` is a bug: it becomes 541 INTERNAL_ERROR and the server emits `error`.
@@ -34,18 +35,18 @@ Guidance for agents working in this repository.
 
 - **Delivery tags** are per channel, kept in `channel.unacked` (delivery tag to smqp `Message`). Ack, nack and reject settle through the smqp message; unknown tags close the channel with 406.
 - **Deliveries are deferred until `consume-ok` is on the wire.** smqp pushes pending messages synchronously inside `queue.consume()`, before we have replied. `#deferred` buffers them.
-- **Channel wide prefetch** is emulated by overriding the smqp consumer's `capacity` getter to clamp by remaining room, and by passing an already clamped `prefetch` when creating the consumer because smqp grabs messages during creation. After acks, `#poke()` nudges every consumed queue with the private `queue._consumeNext()` because smqp only re-evaluates the acked message's own queue.
-- **`basic.cancel` keeps unacked messages unacked.** smqp cancel would requeue them, so `detachConsumerMessages` empties the consumer's internal queue (reached through `Symbol.for('internalQueue')`) first. Channel and connection close do requeue, on purpose.
+- **Channel wide prefetch** is emulated through the smqp `capacity` consume option, a hook returning the room left under the channel prefetch. smqp calls it whenever it grabs messages, including during consumer creation. After acks, `#poke()` nudges every consumed queue with `queue.consumeNext()` because smqp only re-evaluates the acked message's own queue.
+- **`basic.cancel` keeps unacked messages unacked** with smqp `consumer.cancel({ keepPending: true })`. Channel and connection close do requeue, on purpose.
 - **Wire properties are kept verbatim** under the `kWireProperties` symbol on the smqp properties object because smqp adds `messageId`, `timestamp` (milliseconds) and parses `expiration`. Messages seeded through the broker api lack the symbol and fall back to a filtered copy; their content may be a string or object and is coerced to a Buffer.
 - **`basic.return` correlation**: `vhost.publishing` is set only during the synchronous `broker.publish()` call, and the broker `return` event fires synchronously, so the current publisher is always the right channel.
 - **Consumer tags** given to smqp are `${connectionId}.${channelId}.${tag}` because smqp requires broker wide uniqueness while AMQP only requires per channel uniqueness.
 - **Expiry is proactive.** smqp only evicts expired messages lazily when something consumes; `VHost` runs `broker.evictExpired()` on an unref'd interval (`evictInterval` option) so ttl messages dead letter without consumers, and `queue.declare` evicts before counting. Tests mock `setInterval` and `Date` together with `mock.timers` to drive this deterministically.
 - **Counts come from `queue.getStats()`** (`messageCount - unackedCount` is the ready count reported in `declare-ok`); `server.getStats(vhost)` exposes the broker totals.
-- **Queue deletion notifies consumers** through `vhost.deleteQueue`, which reads the consumer entry stored on the smqp consumer under `kConsumerEntry`, then sends `basic.cancel` to the owning channel.
+- **Queue deletion notifies consumers** through `vhost.deleteQueue`, which reads the consumer entry passed to smqp as the consume `owner`, then sends `basic.cancel` to the owning channel.
 
 ## AMQP 1.0 details worth knowing
 
-- **Credit.** A link that sends to the client gets an smqp consumer created with `prefetch: 0`, then `consumer.prefetch(Infinity)` and a `capacity` override clamped by the link credit, so nothing is grabbed until the first `flow`. Remote `flow` sets `credit = remoteDeliveryCount + linkCredit - ourDeliveryCount`, then the queue is nudged with `_consumeNext()`. Links that receive from the client hand out 100 credits and top up below 50.
+- **Credit.** A link that sends to the client gets an smqp consumer with `prefetch: Infinity` and a `capacity` hook returning the link credit, which starts at zero so nothing is grabbed until the first `flow`. Remote `flow` sets `credit = remoteDeliveryCount + linkCredit - ourDeliveryCount`, then the queue is nudged with `queue.consumeNext()`. Links that receive from the client hand out 100 credits and top up below 50.
 - **Settlement.** Our outgoing deliveries are kept in `link.unsettled` and `session.unsettled` by delivery id until a disposition arrives: accepted acks, released and modified requeue (modified with `undeliverable-here` drops), rejected drops. Pre-settled (`snd-settle-mode` 1) deliveries are acked at once. Unsettled ones are requeued on detach, end and close.
 - **rhea quirks pinned by tests.** rhea confirms a server initiated detach with a detach of its own, which must not be treated as an unknown handle. rhea batches settlements of adjacent deliveries issued in the same tick into one disposition carrying the first state, so tests settle one at a time. rhea reuses handle 0 after a detach. rhea's `receiver.drain` expects the answering flow to carry `drain: true`.
 - **Seeding for 1.0 tests.** `broker.assertQueue(name, { durable: false, autoDelete: false })`: smqp defaults `autoDelete` to true, so a seeded queue without the flag vanishes when the first receiver detaches.

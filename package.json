@@ -1,7 +1,19 @@
 {
-  "name": "@0dep/amqp-emulator",
+  "name": "amqp-emulator",
   "version": "0.1.0",
   "description": "AMQP 0-9-1 and 1.0 broker emulator for tests, listens on a real TCP port and speaks both wire protocols",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/zerodep/amqp-emulator.git"
+  },
+  "bugs": {
+    "url": "https://github.com/zerodep/amqp-emulator/issues"
+  },
+  "author": {
+    "name": "Zerodep AB",
+    "url": "https://0dep.se"
+  },
+  "homepage": "https://0dep.se",
   "type": "module",
   "main": "./src/index.js",
   "exports": {
@@ -38,13 +50,9 @@
     "broker",
     "test"
   ],
-  "author": {
-    "name": "Zerodep AB",
-    "url": "https://0dep.se"
-  },
   "license": "MIT",
   "dependencies": {
-    "smqp": "^13.2.0"
+    "smqp": "^14.0.0"
   },
   "devDependencies": {
     "@azure/service-bus": "^7.9.5",

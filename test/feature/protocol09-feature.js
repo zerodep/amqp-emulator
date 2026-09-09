@@ -1,6 +1,6 @@
 import { mock } from 'node:test';
 
-import { constants } from '@0dep/amqp-emulator';
+import { constants } from 'amqp-emulator';
 
 import { startServer, tick } from '../helpers/index.js';
 import { Raw091Client } from '../helpers/raw091-client.js';
@@ -19,7 +19,7 @@ Feature('Protocol edge cases', () => {
 
   /** the most recently accepted 0-9-1 connection */
   function lastConnection() {
-    return /** @type {import('@0dep/amqp-emulator').AmqpConnection} */ ([...ctx.server.connections].at(-1));
+    return /** @type {import('amqp-emulator').AmqpConnection} */ ([...ctx.server.connections].at(-1));
   }
 
   /** @param {number} port */
@@ -534,7 +534,7 @@ Feature('Protocol edge cases', () => {
     });
 
     Then('channel.close carries the code and zero class and method ids', async () => {
-      const { AmqpError } = await import('@0dep/amqp-emulator');
+      const { AmqpError } = await import('amqp-emulator');
       const connection = lastConnection();
       const channel = connection.channels.get(1);
       channel.close(new AmqpError(320, 'CONNECTION_FORCED - go away'));
@@ -594,7 +594,7 @@ Feature('Protocol edge cases', () => {
     });
 
     And('frames after a connection.close in the same chunk are dropped', async () => {
-      const { encodeMethod } = await import('@0dep/amqp-emulator');
+      const { encodeMethod } = await import('amqp-emulator');
       client.write(
         Buffer.concat([
           encodeMethod('connection.close', 0, { replyCode: 200, replyText: 'bye', classId: 0, methodId: 0 }),
@@ -621,7 +621,7 @@ Feature('Protocol edge cases', () => {
       rawClient(slow.server.port);
       await client.connect();
       await client.handshake({ heartbeat: 1 });
-      connection = /** @type {import('@0dep/amqp-emulator').AmqpConnection} */ ([...slow.server.connections].at(-1));
+      connection = /** @type {import('amqp-emulator').AmqpConnection} */ ([...slow.server.connections].at(-1));
     });
 
     When('a heartbeat interval passes without traffic', () => {

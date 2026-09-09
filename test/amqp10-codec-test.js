@@ -5,7 +5,7 @@ import {
   Amqp10FrameParser,
   encodeAmqp10Frame,
   resolveAmqp10Address,
-} from '@0dep/amqp-emulator';
+} from 'amqp-emulator';
 
 /** encode then decode */
 function roundTrip(value, type) {
