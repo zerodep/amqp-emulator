@@ -330,10 +330,12 @@ Feature('AMQP 1.0 protocol edge cases', () => {
       );
       client.send(
         0,
-        { $type: 'transfer', handle: 0, deliveryId: 53, deliveryTag: Buffer.from('53'), messageFormat: 0, settled: true },
+        { $type: 'transfer', handle: 0, deliveryId: 53, deliveryTag: Buffer.from('53'), messageFormat: 0, settled: false },
         encode({ $type: 'amqp-value', value: Buffer.from('bin') }),
       );
-      await tick();
+      const reply = await client.waitFor('disposition');
+      expect(reply.performative).to.include({ role: true, first: 53, settled: true });
+      expect(queue.messageCount).to.equal(53);
       const messages = queue.messages.slice(-2);
       expect(messages[0].content.length).to.equal(0);
       expect(messages[1].content.toString()).to.equal('bin');
@@ -381,7 +383,19 @@ Feature('AMQP 1.0 protocol edge cases', () => {
       });
       const transfer = await client.waitFor('transfer');
       client.send(0, { $type: 'disposition', role: true, first: transfer.performative.deliveryId, settled: true });
-      await tick();
+      // frames are handled in order, so the echoed flow proves the disposition has been processed
+      client.send(0, {
+        $type: 'flow',
+        nextOutgoingId: 0,
+        incomingWindow: 2048,
+        outgoingWindow: 2048,
+        handle: 1,
+        deliveryCount: 2,
+        linkCredit: 0,
+        echo: true,
+      });
+      const flow = await client.waitFor('flow');
+      expect(flow.performative.handle).to.equal(1);
       expect(queue.messageCount).to.equal(51);
     });
 
@@ -396,10 +410,11 @@ Feature('AMQP 1.0 protocol edge cases', () => {
       ctx.server.getBroker().deleteQueue('refill');
       client.send(
         0,
-        { $type: 'transfer', handle: 0, deliveryId: 54, deliveryTag: Buffer.from('54'), messageFormat: 0, settled: true },
+        { $type: 'transfer', handle: 0, deliveryId: 54, deliveryTag: Buffer.from('54'), messageFormat: 0, settled: false },
         encode({ $type: 'properties', userId: typed('string', 'u') }),
       );
-      await tick();
+      const reply = await client.waitFor('disposition');
+      expect(reply.performative).to.include({ role: true, first: 54, settled: true });
       const recreated = ctx.server.getBroker().getQueue('refill');
       expect(recreated.messageCount).to.equal(1);
       expect(recreated.messages[0].properties.userId).to.equal('u');
