@@ -567,6 +567,14 @@ declare module 'amqp-emulator' {
 		feed(chunk: Buffer): Frame_1[];
 	}
 	/**
+	 * @typedef {object} Incoming a delivery whose body frames are still arriving
+	 * @property {any} fields
+	 * @property {any} properties
+	 * @property {Buffer[]} chunks
+	 * @property {number} received
+	 * @property {number} bodySize
+	 */
+	/**
 	 * Minimal outbound AMQP 0-9-1 client used by the shovel to reach a remote broker. It speaks
 	 * just enough of the protocol to consume a queue and confirm-publish, built on this package's
 	 * own codec so the shovel needs no third party client at runtime.

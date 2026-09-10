@@ -26,13 +26,14 @@
     "test": "mocha",
     "posttest": "npm run lint && npm run dist && npm run tsc && npm run test:md",
     "lint": "eslint . --cache && prettier . --check --cache",
-    "generate:amqp09": "node scripts/generate-amqp09-defs.js > src/amqp09/defs.js && prettier --write src/amqp09/defs.js",
     "dist": "dts-buddy",
-    "tsc": "tsc -p test",
+    "tsc": "tsc -p tsconfig.json --noEmit && tsc -p test",
     "prepack": "npm run dist",
     "cov:html": "c8 -n src -r html -r text mocha",
     "test:lcov": "c8 -n src -r lcov -r text mocha",
+    "posttest:lcov": "npm run posttest",
     "test:md": "texample ./README.md",
+    "generate:amqp09": "node scripts/generate-amqp09-defs.js > src/amqp09/defs.js && prettier --write src/amqp09/defs.js",
     "generate:amqp10": "node scripts/generate-amqp10-defs.js > src/amqp10/defs.js && prettier --write src/amqp10/defs.js"
   },
   "engines": {

@@ -1,4 +1,4 @@
-import { kWireProperties } from './shared.js';
+import { toBuffer, wireProperties } from './shared.js';
 import { AmqpClient } from './amqp09/client.js';
 
 /**
@@ -98,8 +98,12 @@ export class Shovel {
    * @param {import('smqp').Message} message
    */
   #forwardLocal(message) {
-    const wire = message.properties[kWireProperties] ?? message.properties;
-    const result = this.#publish(message.content, message.properties, wire, message.fields.routingKey);
+    const result = this.#publish(
+      toBuffer(message.content),
+      message.properties,
+      wireProperties(message.properties),
+      message.fields.routingKey,
+    );
     // a rejected confirm (remote refused or dropped) leaves the source message unacked for retry
     if (result)
       result.then(

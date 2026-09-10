@@ -198,6 +198,39 @@ Feature('Shovel', () => {
     });
   });
 
+  Scenario('a message seeded through the broker api is shovelled to a remote broker with wire properties only', () => {
+    let source, remote, remoteChannel;
+    after(async () => {
+      await source.stop();
+      await remote.stop();
+    });
+
+    Given('two emulators with a shovel from a source queue to a remote queue', async () => {
+      source = await startServer();
+      remote = await startServer();
+      remoteChannel = await (await remote.connect()).createChannel();
+      await remoteChannel.assertQueue('sink');
+      source.server.getBroker().assertQueue('in', { durable: false, autoDelete: false });
+      const shovel = source.server.shovel('seeded-to-remote', {
+        source: { queue: 'in' },
+        destination: { uri: remote.url, queue: 'sink' },
+      });
+      await shovel.ready;
+    });
+
+    When('a message is seeded into the source queue through the broker api', () => {
+      source.server.getBroker().sendToQueue('in', 'seeded', { messageId: 'seed-1', contentType: 'text/plain' });
+    });
+
+    Then('it arrives on the remote emulator with the seeded properties and without smqp internals', async () => {
+      const [message] = await consumeMessages(remoteChannel, 'sink', 1, { noAck: true });
+      expect(message.content.toString()).to.equal('seeded');
+      expect(message.properties.messageId).to.equal('seed-1');
+      expect(message.properties.contentType).to.equal('text/plain');
+      expect(message.properties.timestamp).to.be.undefined;
+    });
+  });
+
   Scenario('a shovel consuming from a remote broker moves messages into the local emulator', () => {
     let local, remote, localChannel, remoteChannel;
     after(async () => {

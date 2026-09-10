@@ -15,6 +15,15 @@ const CHANNEL = 1;
  */
 
 /**
+ * @typedef {object} Incoming a delivery whose body frames are still arriving
+ * @property {any} fields
+ * @property {any} properties
+ * @property {Buffer[]} chunks
+ * @property {number} received
+ * @property {number} bodySize
+ */
+
+/**
  * Minimal outbound AMQP 0-9-1 client used by the shovel to reach a remote broker. It speaks
  * just enough of the protocol to consume a queue and confirm-publish, built on this package's
  * own codec so the shovel needs no third party client at runtime.
@@ -26,11 +35,11 @@ export class AmqpClient {
   /** @type {Array<{ name: string, resolve: (frame: any) => void, reject: (err: Error) => void }>} */
   #waiters = [];
   #publishSeq = 0;
-  /** @type {Map<number, { resolve: () => void, reject: (err: Error) => void }>} */
+  /** @type {Map<number, { resolve: (value: void) => void, reject: (err: Error) => void }>} */
   #confirms = new Map();
   /** @type {(delivery: ClientDelivery) => void} set by consume() before any delivery can arrive */
   #onDelivery;
-  /** @type {{ fields: any, properties: any, chunks: Buffer[], received: number, bodySize: number } | null} */
+  /** @type {Incoming | null} */
   #incoming = null;
   #host;
   #port;
@@ -182,7 +191,7 @@ export class AmqpClient {
   }
 
   #emitDelivery() {
-    const { fields, properties, chunks } = /** @type {NonNullable<typeof this.incoming>} */ (this.#incoming);
+    const { fields, properties, chunks } = /** @type {Incoming} */ (this.#incoming);
     this.#incoming = null;
     this.#onDelivery({ fields, properties, content: Buffer.concat(chunks) });
   }
@@ -192,7 +201,10 @@ export class AmqpClient {
     return new Promise((resolve, reject) => this.#waiters.push({ name, resolve, reject }));
   }
 
-  /** Reject every outstanding wait and confirm; called when the connection goes away */
+  /**
+   * Reject every outstanding wait and confirm; called when the connection goes away
+   * @param {Error} err
+   */
   #fail(err) {
     for (const w of this.#waiters.splice(0)) w.reject(err);
     for (const [, pending] of this.#confirms) pending.reject(err);

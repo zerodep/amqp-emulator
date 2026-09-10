@@ -1,10 +1,10 @@
 # amqp-emulator
 
-[![Build](https://github.com/zerodep/amqp-emulator/actions/workflows/build.yaml/badge.svg)](https://github.com/zerodep/amqp-emulator/actions/workflows/build.yaml)
-
 AMQP broker emulator for tests. It listens on a real TCP port and speaks both AMQP 0-9-1 and AMQP 1.0 on that port, so any client works against it: [amqplib](https://www.npmjs.com/package/amqplib), rascal, amqp-connection-manager and pika over 0-9-1, [rhea](https://www.npmjs.com/package/rhea) and other 1.0 clients over 1.0, and the [Azure Service Bus SDK](https://www.npmjs.com/package/@azure/service-bus) through its Service Bus dialect. All of them share the same queues, so a Service Bus sender can feed an amqplib consumer. Broker semantics come from [smqp](https://www.npmjs.com/package/smqp).
 
 It is not RabbitMQ. It is small, in memory, single process, and meant to make integration tests fast and deterministic without a broker container.
+
+[![Build](https://github.com/zerodep/amqp-emulator/actions/workflows/build.yaml/badge.svg)](https://github.com/zerodep/amqp-emulator/actions/workflows/build.yaml)[![Build (Windows)](https://github.com/zerodep/amqp-emulator/actions/workflows/build-windows.yaml/badge.svg)](https://github.com/zerodep/amqp-emulator/actions/workflows/build-windows.yaml)[![Coverage Status](https://coveralls.io/repos/github/zerodep/amqp-emulator/badge.svg?branch=main)](https://coveralls.io/github/zerodep/amqp-emulator?branch=main)
 
 ## Usage
 

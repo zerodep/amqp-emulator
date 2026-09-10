@@ -20,3 +20,13 @@ export function wireProperties(properties) {
   if (messageId && !String(messageId).startsWith('smq.mid-')) rest.messageId = messageId;
   return /** @type {any} */ (rest);
 }
+
+/**
+ * Message content as a buffer; messages seeded through the smqp broker api may carry strings or objects
+ * @param {any} content
+ */
+export function toBuffer(content) {
+  if (Buffer.isBuffer(content)) return content;
+  if (content === undefined || content === null) return Buffer.alloc(0);
+  return Buffer.from(typeof content === 'string' ? content : JSON.stringify(content));
+}

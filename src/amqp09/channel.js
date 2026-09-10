@@ -1,7 +1,7 @@
 import { constants } from './defs.js';
 import { AmqpError, notFound, preconditionFailed, accessRefused, notImplemented, commandInvalid, unexpectedFrame } from './errors.js';
 import { decodeProperties } from './codec.js';
-import { generateId, kWireProperties, wireProperties } from '../shared.js';
+import { generateId, kWireProperties, toBuffer, wireProperties } from '../shared.js';
 
 const SUPPORTED_EXCHANGE_TYPES = new Set(['direct', 'topic', 'fanout']);
 
@@ -627,16 +627,6 @@ export class AmqpChannel {
       this.send('tx.rollback-ok', {});
     },
   };
-}
-
-/**
- * Message content as a buffer; messages seeded through the smqp broker api may carry strings or objects
- * @param {any} content
- */
-function toBuffer(content) {
-  if (Buffer.isBuffer(content)) return content;
-  if (content === undefined || content === null) return Buffer.alloc(0);
-  return Buffer.from(typeof content === 'string' ? content : JSON.stringify(content));
 }
 
 /**
