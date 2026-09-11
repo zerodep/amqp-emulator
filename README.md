@@ -52,6 +52,82 @@ await connection.close();
 await server.close();
 ```
 
+### Topology that exists up front
+
+Applications whose queues and exchanges are provisioned by infrastructure tooling, terraform for instance, never declare them and expect them to be there. Hand the emulator a `definitions` object in the shape of a RabbitMQ definitions export (`rabbitmqadmin export`) and the topology exists before the first client connects. Definitions are applied again after `reset()`, like infrastructure that outlives broker state. `topics` is a Service Bus extension for topics with subscriptions.
+
+```javascript
+import amqplib from 'amqplib';
+import { AmqpServer } from 'amqp-emulator';
+
+const server = new AmqpServer({
+  definitions: {
+    exchanges: [{ name: 'events', vhost: '/', type: 'topic', durable: true }],
+    queues: [{ name: 'audit', vhost: '/', durable: true, arguments: { 'x-message-ttl': 60000 } }],
+    bindings: [{ source: 'events', vhost: '/', destination: 'audit', destination_type: 'queue', routing_key: 'order.*' }],
+    topics: [{ name: 'notifications', subscriptions: ['mail', 'sms'] }],
+  },
+});
+const { url } = await server.listen();
+
+const connection = await amqplib.connect(url);
+const channel = await connection.createChannel();
+await channel.checkQueue('audit'); // passive declare, would be 404 without the definitions
+channel.publish('events', 'order.created', Buffer.from('routed'));
+const message = await channel.get('audit', { noAck: true });
+console.log(message.content.toString()); // routed
+
+server.load({ queues: [{ name: 'added-later' }] }); // more definitions at runtime, also replayed on reset
+
+await connection.close();
+await server.close();
+```
+
+The same can be done imperatively on the smqp broker behind a vhost, which is handy for a handful of resources in a test. smqp defaults `autoDelete` to `true`, so pass the options explicitly. `x-` arguments are mapped to smqp options by the vhost's `declareQueue`, and Service Bus entities come from `server.serviceBus()`:
+
+```javascript
+import { AmqpServer } from 'amqp-emulator';
+
+const server = new AmqpServer();
+
+const broker = server.getBroker(); // vhost '/'
+broker.assertExchange('events', 'topic', { durable: true, autoDelete: false });
+broker.assertQueue('audit', { durable: true, autoDelete: false });
+broker.bindQueue('audit', 'events', 'order.*');
+
+server.getVHost().declareQueue('retries', { durable: true, arguments: { 'x-dead-letter-exchange': 'events', 'x-message-ttl': 5000 } });
+
+const serviceBus = server.serviceBus();
+serviceBus.createQueue('orders');
+serviceBus.createTopic('notifications');
+serviceBus.createSubscription('notifications', 'mail');
+
+console.log(server.getStats().queues.map((q) => q.name)); // [ 'audit', 'retries', 'orders', 'notifications/Subscriptions/mail' ]
+await server.close();
+```
+
+Resources created this way are gone after `reset()`, unlike definitions.
+
+Or let the emulator create whatever a client refers to. With `autoCreate` a passive declare, publish, consume or bind on a missing exchange or queue creates it with a default setup instead of failing with 404: durable, not auto deleted, exchanges of the configured type (`topic` unless `autoCreate: { exchangeType: 'fanout' }` or `'direct'` is given). AMQP 1.0 exchange addresses are created the same way. This is a deliberate divergence from RabbitMQ, so keep it off when the test should catch missing declarations.
+
+```javascript
+import amqplib from 'amqplib';
+import { AmqpServer } from 'amqp-emulator';
+
+const server = new AmqpServer({ autoCreate: true });
+const { url } = await server.listen();
+
+const connection = await amqplib.connect(url);
+const channel = await connection.createChannel();
+await channel.bindQueue('inbox', 'orders', 'created'); // neither exists yet, both are created
+channel.publish('orders', 'created', Buffer.from('hello'));
+const message = await channel.get('inbox', { noAck: true });
+console.log(message.content.toString()); // hello
+
+await connection.close();
+await server.close();
+```
+
 AMQP 1.0 clients connect to the same port. Queues are addressed by name, exchanges as `/exchanges/name/routing-key`:
 
 ```javascript
@@ -105,23 +181,27 @@ await server.close();
 
 ### `new AmqpServer([options])`
 
-| option          | default   | description                                                               |
-| --------------- | --------- | ------------------------------------------------------------------------- |
-| `heartbeat`     | `60`      | heartbeat interval proposed to clients in seconds, `0` disables           |
-| `frameMax`      | `131072`  | max frame size in bytes                                                   |
-| `channelMax`    | `2047`    | max channels per connection, `0` means no limit                           |
-| `closeTimeout`  | `1000`    | ms to wait for `connection.close-ok` before dropping the socket           |
-| `vhosts`        | `null`    | allowed vhost names, `null` accepts any and creates them on demand        |
-| `authenticate`  | `null`    | `(user, password, connection) => boolean`, `null` accepts everyone        |
-| `version`       | `'0.1.0'` | version string in server properties                                       |
-| `evictInterval` | `100`     | ms between sweeps that expire messages and dead letter them, `0` disables |
+| option          | default   | description                                                                                                                                                        |
+| --------------- | --------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| `heartbeat`     | `60`      | heartbeat interval proposed to clients in seconds, `0` disables                                                                                                    |
+| `frameMax`      | `131072`  | max frame size in bytes                                                                                                                                            |
+| `channelMax`    | `2047`    | max channels per connection, `0` means no limit                                                                                                                    |
+| `closeTimeout`  | `1000`    | ms to wait for `connection.close-ok` before dropping the socket                                                                                                    |
+| `vhosts`        | `null`    | allowed vhost names, `null` accepts any and creates them on demand                                                                                                 |
+| `authenticate`  | `null`    | `(user, password, connection) => boolean`, `null` accepts everyone                                                                                                 |
+| `version`       | `'0.1.0'` | version string in server properties                                                                                                                                |
+| `evictInterval` | `100`     | ms between sweeps that expire messages and dead letter them, `0` disables                                                                                          |
+| `lockDuration`  | `60000`   | Service Bus peek lock duration in ms                                                                                                                               |
+| `definitions`   | `null`    | exchanges, queues, bindings and Service Bus topics that exist up front, replayed on `reset()`, see [Topology that exists up front](#topology-that-exists-up-front) |
+| `autoCreate`    | `false`   | create missing exchanges and queues on use instead of 404, `true` or `{ exchangeType }`                                                                            |
 
 - `listen([port], [host])` resolves with `{ port, host, url }`. Port defaults to `0`, host to `127.0.0.1`.
 - `url`, `port`, `host` of the listening server.
 - `getBroker([vhost])` the smqp broker behind a vhost, for inspecting queues or seeding messages. Seeded content may be a Buffer, a string or an object; objects are delivered as JSON.
 - `getStats([vhost])` message, unacked and consumer counts, totals and per queue, handy for assertions.
-- `serviceBus([vhost])` the Service Bus layer of a vhost: `createQueue(name)`, `createTopic(name)`, `createSubscription(topic, name)`, plus `locks`, `deferred` and `scheduled` for inspection. Queues and subscriptions are also created on first use, topics must be created up front since a bare name otherwise means a queue.
-- `getVHost([vhost])` the vhost wrapper with `broker` and `exclusiveQueues`.
+- `load(definitions)` declares exchanges, queues, bindings and Service Bus `topics` from a RabbitMQ style definitions object. Fields may be snake_case as exported by RabbitMQ or camelCase, `vhost` defaults to `/`, `durable` to `true`. Loaded definitions are applied again after `reset()`.
+- `serviceBus([vhost])` the Service Bus layer of a vhost: `createQueue(name)`, `createTopic(name)`, `createSubscription(topic, name)`, plus `locks`, `deferred` and `scheduled` for inspection. Queues and subscriptions are also created on first use, topics must be created up front since a bare name otherwise means a queue, either here or as `topics` in `definitions`.
+- `getVHost([vhost])` the vhost wrapper with `broker`, `exclusiveQueues` and `declareQueue(name, { durable, autoDelete, exclusive, arguments })`, which maps `x-` arguments to smqp options the way a client declare does.
 - `shovel(name, { source, destination })` a RabbitMQ style shovel that consumes `source.queue` and republishes to `destination.exchange` (with `routingKey`, defaulting to the message's own) or `destination.queue`, acking the source once the destination has it. `source` and `destination` default to this emulator; give either a `uri` (`amqp://user:pass@host:port/vhost`) to reach a remote broker over AMQP instead, or a `vhost` to use another local vhost. Returns the `Shovel`; a remote leg connects asynchronously, so `await shovel.ready` before relying on it. `closeShovel(name)` stops one; `reset()` and `close()` stop them all.
 - `connections` set of live `AmqpConnection` objects, each with `channels`, `user`, `vhost`, `clientProperties`.
 - `disconnect([reason], [code])` sends `connection.close` to every client, 320 CONNECTION_FORCED by default. Useful for testing reconnect logic.
@@ -179,7 +259,6 @@ A connection is treated as Service Bus once the client announces itself as the S
 - **DLQ** Dead Letter Queue, the `$DeadLetterQueue` sub queue that receives messages a consumer gave up on.
 - **TTL** Time To Live, how long a message stays in a queue before it expires.
 - **QoS** Quality of Service, the 0-9-1 method that sets prefetch.
-- **JSDoc** the comment syntax the types are generated from.
 
 ## Development
 

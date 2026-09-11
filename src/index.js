@@ -22,6 +22,13 @@ export { AmqpClient } from './amqp09/client.js';
 
 /**
  * @typedef {import('types').ServerOptions} ServerOptions
+ * @typedef {import('types').AutoCreateOptions} AutoCreateOptions
+ * @typedef {import('types').Definitions} Definitions
+ * @typedef {import('types').ExchangeDefinition} ExchangeDefinition
+ * @typedef {import('types').QueueDefinition} QueueDefinition
+ * @typedef {import('types').BindingDefinition} BindingDefinition
+ * @typedef {import('types').TopicDefinition} TopicDefinition
+ * @typedef {import('types').QueueDeclareOptions} QueueDeclareOptions
  * @typedef {import('types').ListenResult} ListenResult
  * @typedef {import('types').AmqpMethodName} AmqpMethodName
  * @typedef {import('types').WireType} WireType

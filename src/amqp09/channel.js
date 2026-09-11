@@ -221,7 +221,7 @@ export class AmqpChannel {
    */
   #getQueue(queueName, method) {
     const name = queueName || this.lastQueue;
-    const queue = name && this.broker.getQueue(name);
+    const queue = name && this.vhost.ensureQueue(name);
     if (!queue) throw notFound('queue', name, this.vhost.name, method);
     return queue;
   }
@@ -327,7 +327,8 @@ export class AmqpChannel {
     },
 
     'exchange.declare'(fields, method) {
-      const { exchange, type, passive, durable, autoDelete, internal, nowait } = fields;
+      const { exchange, passive, durable, autoDelete, internal, nowait } = fields;
+      let { type } = fields;
       const vhost = this.vhost;
       const existingType = vhost.getExchangeType(exchange);
       this.#assertExchangeName(exchange, method, !!existingType);
@@ -349,16 +350,23 @@ export class AmqpChannel {
           }
         }
       } else {
-        if (passive) throw notFound('exchange', exchange, vhost.name, method);
+        const { autoCreate } = vhost.server;
+        if (passive) {
+          if (!autoCreate) throw notFound('exchange', exchange, vhost.name, method);
+          // a passive declare carries no meaningful type or flags, use the default setup
+          type ||= autoCreate.exchangeType;
+        }
         if (!SUPPORTED_EXCHANGE_TYPES.has(type)) {
           if (type === 'headers') throw notImplemented(`exchange type 'headers' is not supported by the emulator`, method);
           throw commandInvalid(`unknown exchange type '${type}'`, method);
         }
-        vhost.declareExchange(exchange, /** @type {import('smqp').exchangeType} */ (type), {
-          durable: !!durable,
-          autoDelete: !!autoDelete,
-          internal: !!internal,
-        });
+        vhost.declareExchange(
+          exchange,
+          /** @type {import('smqp').exchangeType} */ (type),
+          passive
+            ? { durable: true, autoDelete: false, internal: false }
+            : { durable: !!durable, autoDelete: !!autoDelete, internal: !!internal },
+        );
       }
       if (!nowait) this.send('exchange.declare-ok', {});
     },
@@ -375,8 +383,8 @@ export class AmqpChannel {
     },
     'exchange.bind'({ destination, source, routingKey, nowait, arguments: args }, method) {
       const vhost = this.vhost;
-      if (!vhost.getExchangeType(source)) throw notFound('exchange', source, vhost.name, method);
-      if (!vhost.getExchangeType(destination)) throw notFound('exchange', destination, vhost.name, method);
+      if (!vhost.ensureExchange(source)) throw notFound('exchange', source, vhost.name, method);
+      if (!vhost.ensureExchange(destination)) throw notFound('exchange', destination, vhost.name, method);
       this.#assertExchangeName(source, method, true);
       this.#assertExchangeName(destination, method, true);
       try {
@@ -388,8 +396,8 @@ export class AmqpChannel {
     },
     'exchange.unbind'({ destination, source, routingKey, nowait }, method) {
       const vhost = this.vhost;
-      if (!vhost.getExchangeType(source)) throw notFound('exchange', source, vhost.name, method);
-      if (!vhost.getExchangeType(destination)) throw notFound('exchange', destination, vhost.name, method);
+      if (!vhost.ensureExchange(source)) throw notFound('exchange', source, vhost.name, method);
+      if (!vhost.ensureExchange(destination)) throw notFound('exchange', destination, vhost.name, method);
       this.broker.unbindExchange(source, destination, routingKey);
       if (!nowait) this.send('exchange.unbind-ok', {});
     },
@@ -422,21 +430,14 @@ export class AmqpChannel {
           }
         }
       } else {
-        if (passive) throw notFound('queue', queueName, vhost.name, method);
+        if (passive && !vhost.server.autoCreate) throw notFound('queue', queueName, vhost.name, method);
         if (!queueName) queueName = `amq.gen-${generateId()}`;
-        /** @type {import('smqp').QueueOptions} */
-        const options = {
-          durable: !!durable,
-          autoDelete: !!autoDelete,
-          exclusive: !!exclusive,
-          arguments: args,
-        };
-        if (args['x-message-ttl'] !== undefined) options.messageTtl = args['x-message-ttl'];
-        if (args['x-max-length'] !== undefined) options.maxLength = args['x-max-length'];
-        if (args['x-dead-letter-exchange'] !== undefined) options.deadLetterExchange = args['x-dead-letter-exchange'];
-        if (args['x-dead-letter-routing-key'] !== undefined) options.deadLetterRoutingKey = args['x-dead-letter-routing-key'];
-        queue = this.broker.assertQueue(queueName, options);
-        if (exclusive) vhost.exclusiveQueues.set(queueName, this.connection.id);
+        // a passive declare carries no meaningful flags, autoCreate uses the default setup
+        const options = passive
+          ? { durable: true }
+          : { durable: !!durable, autoDelete: !!autoDelete, exclusive: !!exclusive, arguments: args };
+        queue = vhost.declareQueue(queueName, options);
+        if (options.exclusive) vhost.exclusiveQueues.set(queueName, this.connection.id);
       }
 
       this.lastQueue = queueName;
@@ -453,14 +454,14 @@ export class AmqpChannel {
       const queue = this.#getQueue(queueName, method);
       this.#assertExclusiveOwner(queue.name, method);
       if (exchange === '') throw accessRefused('operation not permitted on the default exchange', method);
-      if (!vhost.getExchangeType(exchange)) throw notFound('exchange', exchange, vhost.name, method);
+      if (!vhost.ensureExchange(exchange)) throw notFound('exchange', exchange, vhost.name, method);
       this.broker.bindQueue(queue.name, exchange, routingKey, { arguments: args });
       if (!nowait) this.send('queue.bind-ok', {});
     },
     'queue.unbind'({ queue: queueName, exchange, routingKey }, method) {
       const vhost = this.vhost;
       const queue = this.#getQueue(queueName, method);
-      if (!vhost.getExchangeType(exchange)) throw notFound('exchange', exchange, vhost.name, method);
+      if (!vhost.ensureExchange(exchange)) throw notFound('exchange', exchange, vhost.name, method);
       this.broker.unbindQueue(queue.name, exchange, routingKey);
       this.send('queue.unbind-ok', {});
     },
@@ -562,7 +563,7 @@ export class AmqpChannel {
         if (queue) queue.queueMessage({ routingKey, exchange: '' }, content, smqpProperties);
         else if (mandatory) this.#return(exchange, routingKey, properties, content);
       } else {
-        if (!vhost.getExchangeType(exchange)) throw notFound('exchange', exchange, vhost.name, method);
+        if (!vhost.ensureExchange(exchange)) throw notFound('exchange', exchange, vhost.name, method);
         vhost.publishing = { channel: this, properties };
         try {
           broker.publish(exchange, routingKey, content, smqpProperties);

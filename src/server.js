@@ -20,7 +20,22 @@ const DEFAULT_OPTIONS = {
   version: '0.1.0',
   evictInterval: 100,
   lockDuration: 60000,
+  definitions: null,
+  autoCreate: false,
 };
+
+/**
+ * First defined field of a definitions entry, RabbitMQ spells them snake_case, hand written ones may be camelCase
+ * @template T
+ * @param {Record<string, any>} entry
+ * @param {string[]} names
+ * @param {T} fallback
+ * @returns {T}
+ */
+function field(entry, names, fallback) {
+  for (const name of names) if (entry[name] !== undefined) return entry[name];
+  return fallback;
+}
 
 const FORCED_CLOSE_REASON = "CONNECTION_FORCED - broker forced connection closure with reason 'shutdown'";
 
@@ -56,11 +71,77 @@ export class AmqpServer extends EventEmitter {
     this.connections = new Set();
     /** @type {string | null} reason passed to block(), null when not blocked */
     this.blockedReason = null;
+    const { autoCreate } = this.options;
+    /** @type {Required<import('types').AutoCreateOptions> | null} normalized autoCreate option, null when off */
+    this.autoCreate = autoCreate ? { exchangeType: 'topic', ...(typeof autoCreate === 'object' ? autoCreate : {}) } : null;
+    /** @type {import('types').Definitions[]} definitions replayed on reset */
+    this.definitions = [];
     /** @type {net.Server} */
     this.server = net.createServer((socket) => this.#sniff(socket));
     this.server.on('error', (err) => {
       if (this.listenerCount('error')) this.emit('error', err);
     });
+    if (this.options.definitions) this.load(this.options.definitions);
+  }
+
+  /**
+   * Declare exchanges, queues, bindings and Service Bus topics from a RabbitMQ style definitions
+   * object, as if they were provisioned outside the application. Loaded definitions are applied
+   * again after `reset()`.
+   * @param {import('types').Definitions} definitions
+   */
+  load(definitions) {
+    this.definitions.push(definitions);
+    this.#apply(definitions);
+    return this;
+  }
+
+  /** @param {import('types').Definitions} definitions */
+  #apply({ vhosts = [], exchanges = [], queues = [], bindings = [], topics = [] }) {
+    for (const { name } of vhosts) this.#definedVHost(name);
+    for (const def of exchanges) {
+      this.#definedVHost(def.vhost).declareExchange(def.name, def.type, {
+        durable: field(def, ['durable'], true),
+        autoDelete: field(def, ['auto_delete', 'autoDelete'], false),
+        internal: field(def, ['internal'], false),
+      });
+    }
+    for (const def of queues) {
+      this.#definedVHost(def.vhost).declareQueue(def.name, {
+        durable: field(def, ['durable'], true),
+        autoDelete: field(def, ['auto_delete', 'autoDelete'], false),
+        arguments: field(def, ['arguments'], {}),
+      });
+    }
+    for (const def of bindings) {
+      const { broker } = this.#definedVHost(def.vhost);
+      const routingKey = field(def, ['routing_key', 'routingKey'], '');
+      const args = field(def, ['arguments'], {});
+      const destinationType = /** @type {typeof field<'queue' | 'exchange'>} */ (field)(
+        def,
+        ['destination_type', 'destinationType'],
+        'queue',
+      );
+      if (destinationType === 'exchange') {
+        broker.bindExchange(def.source, def.destination, routingKey, args);
+      } else {
+        broker.bindQueue(def.destination, def.source, routingKey, { arguments: args });
+      }
+    }
+    for (const def of topics) {
+      const { serviceBus } = this.#definedVHost(def.vhost);
+      serviceBus.createTopic(def.name);
+      for (const subscription of def.subscriptions ?? []) serviceBus.createSubscription(def.name, subscription);
+    }
+  }
+
+  /**
+   * @param {string} [name] defaults to '/'
+   */
+  #definedVHost(name = '/') {
+    const { vhosts } = this.options;
+    if (vhosts && !vhosts.includes(name)) throw new Error(`definitions refer to vhost '${name}' which is not an allowed vhost`);
+    return this.getVHost(name);
   }
 
   /**
@@ -219,6 +300,7 @@ export class AmqpServer extends EventEmitter {
     for (const shovel of this.shovels.values()) shovel.close();
     this.shovels.clear();
     for (const vhost of this.vhosts.values()) vhost.reset();
+    for (const definitions of this.definitions) this.#apply(definitions);
     this.blockedReason = null;
   }
 

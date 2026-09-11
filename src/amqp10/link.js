@@ -246,7 +246,7 @@ export class Link {
       return resolved;
     }
     const { exchange, routingKey } = /** @type {{ exchange: string, routingKey: string }} */ (resolved);
-    if (!this.vhost.getExchangeType(exchange)) {
+    if (!this.vhost.ensureExchange(exchange)) {
       throw new LinkError('amqp:not-found', `no exchange '${exchange}' in vhost '${this.vhost.name}'`);
     }
     if (this.sending) {
@@ -407,7 +407,7 @@ export class Link {
         return { $type: 'accepted' };
       }
       default: {
-        if (!this.vhost.getExchangeType(address.exchange)) {
+        if (!this.vhost.ensureExchange(address.exchange)) {
           return {
             $type: 'rejected',
             error: { $type: 'error', condition: 'amqp:not-found', description: `no exchange '${address.exchange}'` },

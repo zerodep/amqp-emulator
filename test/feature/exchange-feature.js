@@ -1,4 +1,4 @@
-import { startServer, consumeMessages, once } from '../helpers/index.js';
+import { startServer, consumeMessages, once, until } from '../helpers/index.js';
 
 Feature('Exchanges', () => {
   Scenario('declaring exchanges', () => {
@@ -330,6 +330,51 @@ Feature('Exchanges', () => {
 
     And('the exchange can be declared again with another type', async () => {
       await channel.assertExchange('doomed', 'direct');
+    });
+  });
+
+  Scenario('routing follows RabbitMQ rules', () => {
+    let ctx, channel;
+    after(() => ctx.stop());
+
+    Given('a direct exchange with two queues on the same key and one with a wildcard key, plus a topic exchange', async () => {
+      ctx = await startServer();
+      const connection = await ctx.connect();
+      channel = await connection.createChannel();
+      await channel.assertExchange('d', 'direct');
+      await channel.assertExchange('t', 'topic');
+      for (const queue of ['d1', 'd2', 'd3', 'zero', 'inner', 'lead']) await channel.assertQueue(queue);
+      await channel.bindQueue('d1', 'd', 'k');
+      await channel.bindQueue('d2', 'd', 'k');
+      await channel.bindQueue('d3', 'd', 'k.*');
+      await channel.bindQueue('zero', 't', 'order.#');
+      await channel.bindQueue('inner', 't', 'a.#.b');
+      await channel.bindQueue('lead', 't', '#.b');
+    });
+
+    When('messages are published', async () => {
+      channel.publish('d', 'k', Buffer.from('direct'));
+      channel.publish('d', 'k.x', Buffer.from('literal only'));
+      channel.publish('t', 'order', Buffer.from('zero words'));
+      channel.publish('t', 'a.b', Buffer.from('inner zero'));
+      channel.publish('t', 'b', Buffer.from('leading zero'));
+      await until(() => ctx.server.getStats().messageCount === 6);
+    });
+
+    Then('a direct exchange delivers to every queue bound with the key and matches keys literally', () => {
+      const stats = ctx.server.getStats();
+      const count = (name) => stats.queues.find((q) => q.name === name).messageCount;
+      expect(count('d1')).to.equal(1);
+      expect(count('d2')).to.equal(1);
+      expect(count('d3')).to.equal(0);
+    });
+
+    And('a topic # matches zero words at the end, in the middle and at the start', () => {
+      const stats = ctx.server.getStats();
+      const count = (name) => stats.queues.find((q) => q.name === name).messageCount;
+      expect(count('zero')).to.equal(1);
+      expect(count('inner')).to.equal(1);
+      expect(count('lead')).to.equal(2);
     });
   });
 });

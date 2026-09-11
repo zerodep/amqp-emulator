@@ -3,6 +3,13 @@ declare module 'amqp-emulator' {
 	import type { default as net } from 'node:net';
 	import type { Consumer } from 'smqp';
 	export type ServerOptions = ServerOptions_1;
+	export type AutoCreateOptions = AutoCreateOptions_1;
+	export type Definitions = Definitions_1;
+	export type ExchangeDefinition = ExchangeDefinition_1;
+	export type QueueDefinition = QueueDefinition_1;
+	export type BindingDefinition = BindingDefinition_1;
+	export type TopicDefinition = TopicDefinition_1;
+	export type QueueDeclareOptions = QueueDeclareOptions_1;
 	export type ListenResult = ListenResult_1;
 	export type AmqpMethodName = AmqpMethodName_1;
 	export type WireType = WireType_1;
@@ -50,8 +57,18 @@ declare module 'amqp-emulator' {
 		connections: Set<AnyConnection_1>;
 		/** @type {string | null} reason passed to block(), null when not blocked */
 		blockedReason: string | null;
+		/** @type {Required<import('../types/interfaces.d.ts').AutoCreateOptions> | null} normalized autoCreate option, null when off */
+		autoCreate: Required<AutoCreateOptions_1> | null;
+		/** @type {import('../types/interfaces.d.ts').Definitions[]} definitions replayed on reset */
+		definitions: Definitions_1[];
 		
 		server: net.Server;
+		/**
+		 * Declare exchanges, queues, bindings and Service Bus topics from a RabbitMQ style definitions
+		 * object, as if they were provisioned outside the application. Loaded definitions are applied
+		 * again after `reset()`.
+		 * */
+		load(definitions: Definitions_1): this;
 		/**
 		 * Start listening
 		 * @param port defaults to 0, i.e. a random free port
@@ -461,6 +478,20 @@ declare module 'amqp-emulator' {
 		 */
 		declareExchange(name: string, type: import("smqp").exchangeType, options?: import("smqp").ExchangeOptions): void;
 		/**
+		 * Declare a queue, mapping the `x-` arguments a client would send to smqp options
+		 * 
+		 */
+		declareQueue(name: string, { durable, autoDelete, exclusive, arguments: args }?: QueueDeclareOptions_1): import("smqp").Queue;
+		/**
+		 * Exchange type of an existing exchange. With the server `autoCreate` option a missing exchange is
+		 * created durable with the configured default type instead of being reported as missing.
+		 * */
+		ensureExchange(name: string): string | undefined;
+		/**
+		 * An existing queue. With the server `autoCreate` option a missing queue is created durable.
+		 * */
+		ensureQueue(name: string): import("smqp").Queue | undefined;
+		/**
 		 * Delete a queue and notify channels consuming from it
 		 * */
 		deleteQueue(queueName: string): {
@@ -627,6 +658,80 @@ declare module 'amqp-emulator' {
 	evictInterval?: number;
 	/** Service Bus peek lock duration in ms, defaults to 60000 */
 	lockDuration?: number;
+	/** exchanges, queues, bindings and Service Bus topics that exist up front and are recreated on reset */
+	definitions?: Definitions_1 | null;
+	/** create missing exchanges and queues on use instead of answering not found, `true` uses topic exchanges */
+	autoCreate?: boolean | AutoCreateOptions_1;
+  }
+
+  interface AutoCreateOptions_1 {
+	/** type given to exchanges created on use, defaults to topic */
+	exchangeType?: 'direct' | 'topic' | 'fanout';
+  }
+
+  /**
+   * Topology in the shape of a RabbitMQ definitions export (`rabbitmqadmin export`), fields may also be
+   * camelCase. `vhost` defaults to '/'. `topics` is a Service Bus extension.
+   */
+  interface Definitions_1 {
+	vhosts?: Array<{ name: string }>;
+	exchanges?: ExchangeDefinition_1[];
+	queues?: QueueDefinition_1[];
+	bindings?: BindingDefinition_1[];
+	topics?: TopicDefinition_1[];
+  }
+
+  interface ExchangeDefinition_1 {
+	name: string;
+	vhost?: string;
+	type: 'direct' | 'topic' | 'fanout';
+	/** defaults to true */
+	durable?: boolean;
+	/** defaults to false */
+	auto_delete?: boolean;
+	autoDelete?: boolean;
+	internal?: boolean;
+	arguments?: Record<string, any>;
+  }
+
+  interface QueueDefinition_1 {
+	name: string;
+	vhost?: string;
+	/** defaults to true */
+	durable?: boolean;
+	/** defaults to false */
+	auto_delete?: boolean;
+	autoDelete?: boolean;
+	/** `x-message-ttl`, `x-max-length`, `x-dead-letter-exchange` and `x-dead-letter-routing-key` are honoured */
+	arguments?: Record<string, any>;
+  }
+
+  interface BindingDefinition_1 {
+	source: string;
+	vhost?: string;
+	destination: string;
+	/** defaults to queue */
+	destination_type?: 'queue' | 'exchange';
+	destinationType?: 'queue' | 'exchange';
+	/** defaults to '' */
+	routing_key?: string;
+	routingKey?: string;
+	arguments?: Record<string, any>;
+  }
+
+  /** Service Bus topic with its subscriptions */
+  interface TopicDefinition_1 {
+	name: string;
+	vhost?: string;
+	subscriptions?: string[];
+  }
+
+  /** queue options as a client declares them, `x-` arguments are mapped to smqp options */
+  interface QueueDeclareOptions_1 {
+	durable?: boolean;
+	autoDelete?: boolean;
+	exclusive?: boolean;
+	arguments?: Record<string, any>;
   }
 
   /** the connection being authenticated, either protocol */

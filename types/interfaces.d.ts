@@ -19,6 +19,80 @@ export interface ServerOptions {
   evictInterval?: number;
   /** Service Bus peek lock duration in ms, defaults to 60000 */
   lockDuration?: number;
+  /** exchanges, queues, bindings and Service Bus topics that exist up front and are recreated on reset */
+  definitions?: Definitions | null;
+  /** create missing exchanges and queues on use instead of answering not found, `true` uses topic exchanges */
+  autoCreate?: boolean | AutoCreateOptions;
+}
+
+export interface AutoCreateOptions {
+  /** type given to exchanges created on use, defaults to topic */
+  exchangeType?: 'direct' | 'topic' | 'fanout';
+}
+
+/**
+ * Topology in the shape of a RabbitMQ definitions export (`rabbitmqadmin export`), fields may also be
+ * camelCase. `vhost` defaults to '/'. `topics` is a Service Bus extension.
+ */
+export interface Definitions {
+  vhosts?: Array<{ name: string }>;
+  exchanges?: ExchangeDefinition[];
+  queues?: QueueDefinition[];
+  bindings?: BindingDefinition[];
+  topics?: TopicDefinition[];
+}
+
+export interface ExchangeDefinition {
+  name: string;
+  vhost?: string;
+  type: 'direct' | 'topic' | 'fanout';
+  /** defaults to true */
+  durable?: boolean;
+  /** defaults to false */
+  auto_delete?: boolean;
+  autoDelete?: boolean;
+  internal?: boolean;
+  arguments?: Record<string, any>;
+}
+
+export interface QueueDefinition {
+  name: string;
+  vhost?: string;
+  /** defaults to true */
+  durable?: boolean;
+  /** defaults to false */
+  auto_delete?: boolean;
+  autoDelete?: boolean;
+  /** `x-message-ttl`, `x-max-length`, `x-dead-letter-exchange` and `x-dead-letter-routing-key` are honoured */
+  arguments?: Record<string, any>;
+}
+
+export interface BindingDefinition {
+  source: string;
+  vhost?: string;
+  destination: string;
+  /** defaults to queue */
+  destination_type?: 'queue' | 'exchange';
+  destinationType?: 'queue' | 'exchange';
+  /** defaults to '' */
+  routing_key?: string;
+  routingKey?: string;
+  arguments?: Record<string, any>;
+}
+
+/** Service Bus topic with its subscriptions */
+export interface TopicDefinition {
+  name: string;
+  vhost?: string;
+  subscriptions?: string[];
+}
+
+/** queue options as a client declares them, `x-` arguments are mapped to smqp options */
+export interface QueueDeclareOptions {
+  durable?: boolean;
+  autoDelete?: boolean;
+  exclusive?: boolean;
+  arguments?: Record<string, any>;
 }
 
 /** the connection being authenticated, either protocol */

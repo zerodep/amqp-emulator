@@ -76,6 +76,47 @@ export class VHost {
   }
 
   /**
+   * Declare a queue, mapping the `x-` arguments a client would send to smqp options
+   * @param {string} name
+   * @param {import('types').QueueDeclareOptions} [options]
+   */
+  declareQueue(name, { durable = false, autoDelete = false, exclusive = false, arguments: args = {} } = {}) {
+    /** @type {import('smqp').QueueOptions} */
+    const options = { durable, autoDelete, exclusive, arguments: args };
+    if (args['x-message-ttl'] !== undefined) options.messageTtl = args['x-message-ttl'];
+    if (args['x-max-length'] !== undefined) options.maxLength = args['x-max-length'];
+    if (args['x-dead-letter-exchange'] !== undefined) options.deadLetterExchange = args['x-dead-letter-exchange'];
+    if (args['x-dead-letter-routing-key'] !== undefined) options.deadLetterRoutingKey = args['x-dead-letter-routing-key'];
+    return this.broker.assertQueue(name, options);
+  }
+
+  /**
+   * Exchange type of an existing exchange. With the server `autoCreate` option a missing exchange is
+   * created durable with the configured default type instead of being reported as missing.
+   * @param {string} name
+   * @returns {string | undefined}
+   */
+  ensureExchange(name) {
+    const type = this.getExchangeType(name);
+    if (type) return type;
+    const { autoCreate } = this.server;
+    if (!autoCreate) return undefined;
+    this.declareExchange(name, autoCreate.exchangeType, { durable: true, autoDelete: false });
+    return autoCreate.exchangeType;
+  }
+
+  /**
+   * An existing queue. With the server `autoCreate` option a missing queue is created durable.
+   * @param {string} name
+   * @returns {import('smqp').Queue | undefined}
+   */
+  ensureQueue(name) {
+    const queue = this.broker.getQueue(name);
+    if (queue || !this.server.autoCreate) return queue;
+    return this.declareQueue(name, { durable: true });
+  }
+
+  /**
    * Delete a queue and notify channels consuming from it
    * @param {string} queueName
    */
