@@ -6,6 +6,22 @@ It is not RabbitMQ. It is small, in memory, single process, and meant to make in
 
 [![Build](https://github.com/zerodep/amqp-emulator/actions/workflows/build.yaml/badge.svg)](https://github.com/zerodep/amqp-emulator/actions/workflows/build.yaml)[![Build (Windows)](https://github.com/zerodep/amqp-emulator/actions/workflows/build-windows.yaml/badge.svg)](https://github.com/zerodep/amqp-emulator/actions/workflows/build-windows.yaml)[![Coverage Status](https://coveralls.io/repos/github/zerodep/amqp-emulator/badge.svg?branch=main)](https://coveralls.io/github/zerodep/amqp-emulator?branch=main)
 
+<!-- toc -->
+
+- [Usage](#usage)
+  - [Topology that exists up front](#topology-that-exists-up-front)
+- [API](#api)
+  - [`new AmqpServer([options])`](#new-amqpserveroptions)
+- [What is emulated](#what-is-emulated)
+  - [AMQP 1.0](#amqp-10)
+  - [Azure Service Bus](#azure-service-bus)
+- [Known differences from RabbitMQ](#known-differences-from-rabbitmq)
+- [Abbreviations](#abbreviations)
+- [Development](#development)
+- [Licenses and trademarks](#licenses-and-trademarks)
+
+<!-- /toc -->
+
 ## Usage
 
 ```javascript
@@ -263,10 +279,11 @@ A connection is treated as Service Bus once the client announces itself as the S
 ## Development
 
 ```bash
-npm test          # mocha, then lint, type generation, tsc over the tests and the README examples
+npm test          # mocha, then toc, lint, type generation, tsc over the tests and the README examples
 npm run generate:amqp09  # regenerate src/amqp09/defs.js from spec/amqp-rabbitmq-0.9.1.json
 npm run generate:amqp10  # regenerate src/amqp10/defs.js from the OASIS spec xml in spec/
 npm run dist      # generate types/index.d.ts from JSDoc with dts-buddy
+npm run toc       # regenerate the README table of contents
 npm run test:md   # execute the README examples with texample
 npm run cov:html  # c8 coverage report
 ```

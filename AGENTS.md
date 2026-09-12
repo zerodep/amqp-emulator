@@ -13,7 +13,7 @@ Guidance for agents working in this repository.
 - **Real clients.** Tests drive the emulator with amqplib (0-9-1), rhea (1.0) and `@azure/service-bus` (Service Bus dialect) over TCP (`test/helpers/index.js` starts a server on a random port and tracks amqplib connections). Protocol edge cases the clients cannot produce use `test/helpers/raw091-client.js` and `test/helpers/raw10-client.js`, minimal frame level clients built on this package's codecs.
 - **Import the package by name in tests** (`amqp-emulator`) so `tsc -p test` type checks tests against the generated `types/index.d.ts`.
 - **No commits, no branches.** The user reviews and commits.
-- `npm test` runs mocha, then `posttest`: eslint + prettier, `dts-buddy` type generation, `tsc -p test` and `texample ./README.md`, which executes every ` ```javascript ` block in the README against the real package. Use ` ```js ` for snippets that must not run. All must pass.
+- `npm test` runs mocha, then `posttest`: `toc` (regenerates the README table of contents), eslint + prettier, `dts-buddy` type generation, `tsc -p test` and `texample ./README.md`, which executes every ` ```javascript ` block in the README against the real package. Use ` ```js ` for snippets that must not run. All must pass.
 
 ## Layout
 

@@ -24,11 +24,12 @@
   },
   "scripts": {
     "test": "mocha",
-    "posttest": "npm run lint && npm run dist && npm run tsc && npm run test:md",
+    "posttest": "npm run toc && npm run lint && npm run dist && npm run tsc && npm run test:md",
     "lint": "eslint . --cache && prettier . --check --cache",
     "dist": "dts-buddy",
+    "toc": "toc README.md",
     "tsc": "tsc -p tsconfig.json --noEmit && tsc -p test",
-    "prepack": "npm run dist",
+    "prepack": "npm run toc && npm run dist",
     "cov:html": "c8 -n src -r html -r text mocha",
     "test:lcov": "c8 -n src -r lcov -r text mocha",
     "posttest:lcov": "npm run posttest",
@@ -56,6 +57,7 @@
     "smqp": "^15.0.0"
   },
   "devDependencies": {
+    "@0dep/toc": "^1.0.0",
     "@azure/service-bus": "^7.9.5",
     "@eslint/js": "^10.0.1",
     "@types/chai": "^5.0.0",
