@@ -4,7 +4,7 @@ Guidance for agents working in this repository.
 
 ## What this is
 
-`amqp-emulator` is an AMQP broker emulator that listens on a real TCP port and speaks 0-9-1 and 1.0 on the same port, sniffing the 8 byte protocol header. Broker semantics (exchanges, queues, bindings, acks, dead lettering, ttl) come from `smqp`; this package adds the wire protocols, connection, channel, session and link state, and RabbitMQ-like error behaviour on top. ESM only, Node 24+.
+`amqp-emulator` is an AMQP broker emulator that listens on a real TCP port and speaks 0-9-1 and 1.0 on the same port, sniffing the 8 byte protocol header. Broker semantics (exchanges, queues, bindings, acks, dead lettering, ttl) come from `smqp`; this package adds the wire protocols, connection, channel, session and link state, and RabbitMQ-like error behaviour on top. ESM only, tested on Node 22, 24 and 26.
 
 ## Working rules
 

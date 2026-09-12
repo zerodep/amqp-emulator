@@ -1,6 +1,12 @@
 # amqp-emulator
 
-AMQP broker emulator for tests. It listens on a real TCP port and speaks both AMQP 0-9-1 and AMQP 1.0 on that port, so any client works against it: [amqplib](https://www.npmjs.com/package/amqplib), rascal, amqp-connection-manager and pika over 0-9-1, [rhea](https://www.npmjs.com/package/rhea) and other 1.0 clients over 1.0, and the [Azure Service Bus SDK](https://www.npmjs.com/package/@azure/service-bus) through its Service Bus dialect. All of them share the same queues, so a Service Bus sender can feed an amqplib consumer. Broker semantics come from [smqp](https://www.npmjs.com/package/smqp).
+AMQP broker emulator for tests. It listens on a real TCP port and speaks both AMQP 0-9-1 and AMQP 1.0 on that port, so any client works against it:
+
+- [amqplib](https://www.npmjs.com/package/amqplib), rascal, amqp-connection-manager and pika over 0-9-1, which also covers applications written for Amazon MQ for RabbitMQ
+- [rhea](https://www.npmjs.com/package/rhea) and other 1.0 clients over 1.0, which also covers applications that talk to Apache ActiveMQ, Amazon MQ for ActiveMQ or IBM MQ over AMQP 1.0
+- the [Azure Service Bus SDK](https://www.npmjs.com/package/@azure/service-bus) through its Service Bus dialect
+
+All of them share the same queues, so a Service Bus sender can feed an amqplib consumer. Broker semantics come from [smqp](https://www.npmjs.com/package/smqp).
 
 It is not RabbitMQ. It is small, in memory, single process, and meant to make integration tests fast and deterministic without a broker container.
 
@@ -292,7 +298,7 @@ Tests are BDD style with mocha-cakes-2 and run the real amqplib and rhea clients
 
 ## Licenses and trademarks
 
-Not affiliated with or endorsed by Microsoft, Broadcom/VMware, or OASIS. Azure, Azure Service Bus, RabbitMQ, and AMQP are trademarks of their respective owners and are used here only to describe interoperability.
+Not affiliated with or endorsed by Microsoft, Broadcom/VMware, IBM, Amazon, the Apache Software Foundation, or OASIS. Azure, Azure Service Bus, RabbitMQ, IBM MQ, Amazon MQ, Apache ActiveMQ, and AMQP are trademarks of their respective owners and are used here only to describe interoperability.
 
 - `spec/amqp-rabbitmq-0.9.1.json`: the AMQP 0-9-1 protocol definition, (c) VMware, Inc., MIT licensed, with its notice retained in the file. `src/amqp09/defs.js` is generated from it.
 - `spec/amqp-core-*-v1.0.xml`: the AMQP 1.0 core specification, (c) OASIS Open 2012, redistributed under the OASIS IPR Policy with its copyright notice retained. `src/amqp10/defs.js` is generated from it.

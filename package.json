@@ -1,6 +1,6 @@
 {
   "name": "amqp-emulator",
-  "version": "0.1.1",
+  "version": "0.1.3",
   "description": "AMQP 0-9-1 and 1.0 broker emulator for tests, listens on a real TCP port and speaks both wire protocols",
   "repository": {
     "type": "git",
@@ -36,9 +36,6 @@
     "test:md": "texample ./README.md",
     "generate:amqp09": "node scripts/generate-amqp09-defs.js > src/amqp09/defs.js && prettier --write src/amqp09/defs.js",
     "generate:amqp10": "node scripts/generate-amqp10-defs.js > src/amqp10/defs.js && prettier --write src/amqp10/defs.js"
-  },
-  "engines": {
-    "node": ">=24"
   },
   "keywords": [
     "amqp",
