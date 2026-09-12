@@ -1,6 +1,6 @@
 {
   "name": "amqp-emulator",
-  "version": "0.1.0",
+  "version": "0.1.1",
   "description": "AMQP 0-9-1 and 1.0 broker emulator for tests, listens on a real TCP port and speaks both wire protocols",
   "repository": {
     "type": "git",
@@ -80,7 +80,8 @@
   "files": [
     "src/",
     "types/index.d.ts*",
-    "NOTICE"
+    "NOTICE",
+    "CHANGELOG.md"
   ],
   "types": "./types/index.d.ts"
 }
