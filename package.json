@@ -1,6 +1,6 @@
 {
   "name": "amqp-emulator",
-  "version": "0.1.3",
+  "version": "0.1.2",
   "description": "AMQP 0-9-1 and 1.0 broker emulator for tests, listens on a real TCP port and speaks both wire protocols",
   "repository": {
     "type": "git",
@@ -44,6 +44,7 @@
     "rhea",
     "amqplib",
     "emulator",
+    "simulator",
     "mock",
     "fake",
     "broker",
