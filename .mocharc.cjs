@@ -1,6 +1,6 @@
 module.exports = {
-  ui: 'mocha-cakes-2',
-  spec: ['test/**/*-feature.js', 'test/**/*-test.js'],
+  ui: 'mocha-scenarios',
+  ignore: ['test/helpers/**'],
   require: 'chai/register-expect.js',
   recursive: true,
   exit: true,
